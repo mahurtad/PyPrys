@@ -1,0 +1,24 @@
+Fase 1: Extraer 4 primeras columnas
+Extrae toda la información de la sección "8. ACTIVIDADES PRINCIPALES" del sílabo proporcionado.  
+Organiza los datos en un Excel con las siguientes columnas:
+
+- MÓDULO DE APRENDIZAJE (solo el número)  
+- SEMANA  
+- SESIÓN  
+- TEMAS  
+
+Entrega el archivo con el nombre:
+Plan_4Columnas_<NOMBRE_DEL_CURSO>.xlsx
+
+
+Fase 2: Completar con 2 columnas adicionales
+Ahora a partir del mismo sílabo y respetando el archivo anterior, agrega las siguientes dos columnas con todo el contenido literal:
+
+- ACTIVIDADES EN INTERACCIÓN CON EL DOCENTE  
+- ACTIVIDADES DE TRABAJO AUTÓNOMO  
+
+Conserva las 4 primeras columnas previas y combina las seis en un solo Excel.  
+Usa saltos de línea en cada celda para separar "Tipo de actividad" y "Descripción".  
+
+Entrega el archivo con el nombre:
+Plan_6Columnas_<NOMBRE_DEL_CURSO>.xlsx

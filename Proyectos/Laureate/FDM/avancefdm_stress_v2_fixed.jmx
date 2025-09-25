@@ -1,0 +1,413 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="AvanceFdm Stress Plan (v2)">
+      <stringProp name="TestPlan.comments">Includes CSV enabled, debug samplers, and auto-refresh token on 401</stringProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="BASIC_USER" elementType="Argument">
+            <stringProp name="Argument.name">BASIC_USER</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="BASIC_PASS" elementType="Argument">
+            <stringProp name="Argument.name">BASIC_PASS</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="CODIGO_PROGRAMA" elementType="Argument">
+            <stringProp name="Argument.name">CODIGO_PROGRAMA</stringProp>
+            <stringProp name="Argument.value">UAC_ISIN_SP1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="PIDM" elementType="Argument">
+            <stringProp name="Argument.name">PIDM</stringProp>
+            <stringProp name="Argument.value">948443</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="USERS" elementType="Argument">
+            <stringProp name="Argument.name">USERS</stringProp>
+            <stringProp name="Argument.value">100</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="RAMP" elementType="Argument">
+            <stringProp name="Argument.name">RAMP</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="LOOPS" elementType="Argument">
+            <stringProp name="Argument.name">LOOPS</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="CSV_PATH" elementType="Argument">
+            <stringProp name="Argument.name">CSV_PATH</stringProp>
+            <stringProp name="Argument.value">G:\My Drive\Data Analysis\Proyectos\Laureate\FDM\szvfdmv_v2.xlsx</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <SetupThreadGroup guiclass="SetupThreadGroupGui" testclass="SetupThreadGroup" testname="01 - Generate Token">
+        <intProp name="ThreadGroup.num_threads">100</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">1</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </SetupThreadGroup>
+      <hashTree>
+        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults (Token)">
+          <stringProp name="HTTPSampler.domain">apicert-manager.upc.edu.pe</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.implementation"></stringProp>
+        </ConfigTestElement>
+        <hashTree/>
+        <AuthManager guiclass="AuthPanel" testclass="AuthManager" testname="HTTP Authorization Manager (Basic for Token)">
+          <collectionProp name="AuthManager.auth_list">
+            <elementProp name="" elementType="Authorization">
+              <stringProp name="Authorization.url">https://apicert-manager.upc.edu.pe/seguridad/v4.0/GenerarToken</stringProp>
+              <stringProp name="Authorization.username">${BASIC_USER}</stringProp>
+              <stringProp name="Authorization.password">${BASIC_PASS}</stringProp>
+              <stringProp name="Authorization.domain"></stringProp>
+              <stringProp name="Authorization.realm"></stringProp>
+              <stringProp name="Authorization.mechanism">BASIC</stringProp>
+            </elementProp>
+          </collectionProp>
+          <boolProp name="AuthManager.controlledByThreadGroup">false</boolProp>
+        </AuthManager>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /seguridad/v4.0/GenerarToken">
+          <stringProp name="HTTPSampler.domain">apicert-manager.upc.edu.pe</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/seguridad/v4.0/GenerarToken</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract accessToken" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">accessToken</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.accessToken</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <boolProp name="JSONPostProcessor.skipDefault">true</boolProp>
+            <stringProp name="JSONPostProcessor.source">BODY</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Save token to property" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script">def tok = vars.get(&apos;accessToken&apos;); if (tok) { props.put(&apos;accessToken&apos;, tok); log.info(&apos;Token guardado en props. len=&apos; + tok.length()); } else { log.error(&apos;No se extrajo accessToken. Body=&apos; + prev.getResponseDataAsString()); }</stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+        <DebugSampler guiclass="TestBeanGUI" testclass="DebugSampler" testname="Debug (setUp)" enabled="false">
+          <boolProp name="displayJMeterProperties">true</boolProp>
+          <boolProp name="displayJMeterVariables">true</boolProp>
+          <boolProp name="displaySystemProperties">false</boolProp>
+          <boolProp name="displaySamplerProperties">false</boolProp>
+        </DebugSampler>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="02 - Load AvanceFdm">
+        <stringProp name="ThreadGroup.num_threads">${USERS}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${RAMP}</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">${LOOPS}</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults (Load)">
+          <stringProp name="HTTPSampler.domain">apicert-manager.upc.edu.pe</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.implementation"></stringProp>
+        </ConfigTestElement>
+        <hashTree/>
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager (Bearer)">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="Authorization" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">Bearer ${__property(accessToken)}</stringProp>
+            </elementProp>
+            <elementProp name="Accept" elementType="Header">
+              <stringProp name="Header.name">Accept</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="CSV Data Set (CODIGO_PROGRAMA, PIDM)">
+          <stringProp name="filename">${CSV_PATH}</stringProp>
+          <stringProp name="fileEncoding"></stringProp>
+          <stringProp name="variableNames">CODIGO_PROGRAMA,PIDM</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <stringProp name="delimiter">,</stringProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <DebugSampler guiclass="TestBeanGUI" testclass="DebugSampler" testname="Debug (load)" enabled="false">
+          <boolProp name="displayJMeterProperties">true</boolProp>
+          <boolProp name="displayJMeterVariables">true</boolProp>
+          <boolProp name="displaySystemProperties">false</boolProp>
+          <boolProp name="displaySamplerProperties">false</boolProp>
+        </DebugSampler>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /Academico/v4.0/AvanceFdm" enabled="true">
+          <stringProp name="HTTPSampler.domain">apicert-manager.upc.edu.pe</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/Academico/v4.0/AvanceFdm</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="codigoPrograma" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">${CODIGO_PROGRAMA}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+                <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                <stringProp name="Argument.name">codigoPrograma</stringProp>
+              </elementProp>
+              <elementProp name="pidm" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">${PIDM}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+                <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                <stringProp name="Argument.name">pidm</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Assert 2xx" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49015874">2\d\d</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message"></stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+            <boolProp name="Assertion.useCustomMessage">false</boolProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Auto-refresh token on 401" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script">if (prev.getResponseCode() == &apos;401&apos;) { log.warn(&apos;401 detectado. Regenerando token...&apos;); def user = vars.get(&apos;BASIC_USER&apos;); def pass = vars.get(&apos;BASIC_PASS&apos;); def basic = (user + &apos;:&apos; + pass).bytes.encodeBase64().toString(); def client = java.net.http.HttpClient.newHttpClient(); def req = java.net.http.HttpRequest.newBuilder().uri(java.net.URI.create(&apos;https://apicert-manager.upc.edu.pe/seguridad/v4.0/GenerarToken&apos;)).header(&apos;Authorization&apos;, &apos;Basic &apos; + basic).GET().build(); def res = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString()); if (res.statusCode() == 200) { def tok = new groovy.json.JsonSlurper().parseText(res.body())?.accessToken; if (tok) { props.put(&apos;accessToken&apos;, tok); log.info(&apos;Token refrescado. len=&apos; + tok.length()); } } }</stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>false</message>
+              <threadName>true</threadName>
+              <dataType>false</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>false</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>false</message>
+              <threadName>true</threadName>
+              <dataType>false</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>false</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree (disable for big runs)" enabled="false">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>true</responseData>
+              <samplerData>true</samplerData>
+              <xml>true</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>true</responseHeaders>
+              <requestHeaders>true</requestHeaders>
+              <responseDataOnError>true</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

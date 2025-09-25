@@ -1,0 +1,227 @@
+{
+  "name": "Canvas Agent (Courses & Students)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "canvas-chat",
+        "respond": "responseNode"
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javascript",
+        "jsCode": "const body = $json || {};\nconst out = {\n  question: body.question || body.text || \"\",\n  account_id: body.account_id || \"\",\n  course_id: body.course_id || \"\"\n};\nreturn [{ json: out }];"
+      },
+      "id": "NormalizeInput",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "messageModel",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "message": [
+            {
+              "role": "user",
+              "content": "Eres un asistente que SOLO devuelve JSON válido. Usa este formato:\n{\"action\":\"count_courses_by_account|list_students_in_course|unknown\",\"account_id\": \"...\",\"course_id\":\"...\"}\n\nPregunta: \"{{ $json.question }}\"\naccount_id: \"{{ $json.account_id }}\"\ncourse_id: \"{{ $json.course_id }}\""
+            }
+          ]
+        },
+        "simplify": true
+      },
+      "id": "Intent",
+      "name": "Intent",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 4,
+      "position": [660, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javascript",
+        "jsCode": "let intent = { action: 'unknown', account_id: '', course_id: '' };\ntry {\n  const obj = JSON.parse(($json.content || '').trim());\n  intent.action = obj.action || 'unknown';\n  intent.account_id = obj.account_id || $node['Normalize Input'].json.account_id || '';\n  intent.course_id = obj.course_id || $node['Normalize Input'].json.course_id || '';\n} catch(e) {}\nintent.original_question = $node['Normalize Input'].json.question;\nreturn [{ json: intent }];"
+      },
+      "id": "ParseIntent",
+      "name": "Parse Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"action\"]}}",
+              "operation": "equal",
+              "value2": "count_courses_by_account"
+            },
+            {
+              "value1": "={{$json[\"action\"]}}",
+              "operation": "equal",
+              "value2": "list_students_in_course"
+            },
+            {
+              "value1": "={{$json[\"action\"]}}",
+              "operation": "equal",
+              "value2": "unknown"
+            }
+          ]
+        }
+      },
+      "id": "Switch",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "https://cientificavirtual.cientifica.edu.pe/api/v1/accounts/{{$json.account_id}}/courses",
+        "options": {
+          "sendHeaders": true,
+          "headerParametersJson": "{ \"Authorization\": \"Bearer YOUR_CANVAS_TOKEN\" }"
+        }
+      },
+      "id": "CanvasListCourses",
+      "name": "Canvas: List Courses",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javascript",
+        "jsCode": "const cursos = items.map(i => i.json);\nconst counts = {};\nfor (const c of cursos) {\n  const sub = c.account_id || 'unknown';\n  counts[sub] = (counts[sub] || 0) + 1;\n}\nconst totalCursos = Object.values(counts).reduce((a,b)=>a+b,0);\nconst totalCarreras = Object.keys(counts).length;\nreturn [{ json: { total_cursos: totalCursos, total_carreras: totalCarreras } }];"
+      },
+      "id": "CountBySubaccount",
+      "name": "Count by Subaccount",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 200]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "messageModel",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "message": [
+            {
+              "role": "user",
+              "content": "Tengo {{$json.total_cursos}} cursos en total y {{$json.total_carreras}} carreras. Responde en una sola oración."
+            }
+          ]
+        },
+        "simplify": true
+      },
+      "id": "LLMCourses",
+      "name": "Message a model (Courses)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 4,
+      "position": [1700, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "https://cientificavirtual.cientifica.edu.pe/api/v1/courses/{{$json.course_id}}/enrollments",
+        "options": {
+          "sendHeaders": true,
+          "headerParametersJson": "{ \"Authorization\": \"Bearer YOUR_CANVAS_TOKEN\" }",
+          "sendQuery": true,
+          "queryParametersJson": "{ \"type[]\": \"StudentEnrollment\", \"state[]\":\"active\", \"per_page\": 100 }"
+        }
+      },
+      "id": "CanvasListEnrollments",
+      "name": "Canvas: List Enrollments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1320, 360]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javascript",
+        "jsCode": "const enrollments = items.map(i => i.json);\nconst total = enrollments.length;\nconst courseId = $node['Parse Intent'].json.course_id;\nreturn [{ json: { response: `El curso ${courseId} tiene ${total} alumno(s) activos.` } }];"
+      },
+      "id": "SummarizeStudents",
+      "name": "Summarize Students",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 360]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javascript",
+        "jsCode": "const q = $node['Parse Intent'].json.original_question;\nreturn [{ json: { response: `No entendí tu consulta: '${q}'. Por favor aclara si quieres el total de cursos o de alumnos.` } }];"
+      },
+      "id": "UnknownReply",
+      "name": "Unknown Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 520]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseBody": "={{$json[\"message\"]?.content || $json[\"response\"]}}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "text/plain; charset=utf-8" }
+            ]
+          }
+        }
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 3,
+      "position": [1900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]] },
+    "Normalize Input": { "main": [[{ "node": "Intent", "type": "main", "index": 0 }]] },
+    "Intent": { "main": [[{ "node": "Parse Intent", "type": "main", "index": 0 }]] },
+    "Parse Intent": { "main": [[{ "node": "Switch", "type": "main", "index": 0 }]] },
+    "Switch": {
+      "main": [
+        [{ "node": "Canvas: List Courses", "type": "main", "index": 0 }],
+        [{ "node": "Canvas: List Enrollments", "type": "main", "index": 0 }],
+        [{ "node": "Unknown Reply", "type": "main", "index": 0 }]
+      ]
+    },
+    "Canvas: List Courses": { "main": [[{ "node": "Count by Subaccount", "type": "main", "index": 0 }]] },
+    "Count by Subaccount": { "main": [[{ "node": "Message a model (Courses)", "type": "main", "index": 0 }]] },
+    "Message a model (Courses)": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] },
+    "Canvas: List Enrollments": { "main": [[{ "node": "Summarize Students", "type": "main", "index": 0 }]] },
+    "Summarize Students": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] },
+    "Unknown Reply": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  }
+}
