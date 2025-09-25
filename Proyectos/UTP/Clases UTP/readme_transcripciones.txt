@@ -5,6 +5,7 @@ $newPath = "C:\ffmpeg\bin;" + $oldPath
 [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
 
 
+
 ffmpeg -versión
 
 pip install -r requirements.txt
