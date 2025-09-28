@@ -40,7 +40,7 @@ def save_fig(plt_obj, outdir: Path, name: str):
 # -----------------------------
 def main():
     parser = argparse.ArgumentParser(description="Console metrics for 'Tickets Diarios'")
-    parser.add_argument("--path", type=str, default=r"C:\Users\manue\OneDrive - EduCorpPERU\Proyectos QA - 2025\Gestión Demanda Certificaciones LIUv1.xlsx",
+    parser.add_argument("--path", type=str, default=r"C:\Users\manue\OneDrive - EduCorpPERU\Calidad de Software - Certificaciones\Gestión Demanda Certificaciones LIUv1.xlsx",
                         help="Ruta al Excel con la hoja 'Tickets Diarios'")
     parser.add_argument("--sheet", type=str, default="Tickets Diarios", help="Nombre de la hoja")
     parser.add_argument("--outdir", type=str, default=str(Path.cwd()), help="Directorio de salida para TXT/CSV/PNG")

@@ -14,15 +14,26 @@ Requisitos: pandas, openpyxl
 import os
 import re
 import sys
+import warnings  # <-- silenciar warnings de openpyxl
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Iterable, Tuple
+from typing import Dict, Any
+from shutil import copyfile  # <-- copia al nombre fijo
 
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, NamedStyle
 from openpyxl.utils import get_column_letter
 
+# Silenciar warnings ruidosos de openpyxl (sin cambiar lógica)
+warnings.filterwarnings(
+    "ignore",
+    message="Workbook contains no default style, apply openpyxl's default"
+)
+warnings.filterwarnings(
+    "ignore",
+    message="Data Validation extension is not supported and will be removed"
+)
 
 # =============== CONFIG ===============
 FOLDER_TICKETS = Path(r"C:\Users\manue\OneDrive - EduCorpPERU\2025\Tickets")
@@ -36,16 +47,19 @@ CERT_PATH = Path(r"C:\Users\manue\OneDrive - EduCorpPERU\Calidad de Software - C
 CERT_SHEET = "Tickets Diarios"
 
 EXPORT_PATH = FOLDER_TICKETS / f"Exported_Tickets_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
+EXPORT_PATH_LATEST = FOLDER_TICKETS / "Exported_Tickets.xlsx"  # nombre fijo
 
 # Columnas finales históricas (para "Finalizados")
 TARGET_COLS_WITH_NUM = [
     "NUM.", "RITM/INC", "SCTASK", "DESCRIPCIÓN", "PORTAL",
-    "CHG", "Fuente", "State", "Created", "Updated"
+    "CHG", "Fuente", "State", "Created", "Updated",
+    "Created_hora", "Updated_hour"  # <-- NUEVO
 ]
 # Para "Tickets" (sin NUM.)
 TARGET_COLS_NO_NUM = [
-    "RITM/INC", "SCTASK", "PORTAL", "DESCRIPCIÓN",
-    "CHG", "Fuente", "State", "Created", "Updated"
+    "RITM/INC", "SCTASK", "DESCRIPCIÓN", "PORTAL",
+    "CHG", "Fuente", "State", "Created", "Updated",
+    "Created_hora", "Updated_hour"  # <-- NUEVO
 ]
 # ======================================
 
@@ -54,12 +68,14 @@ TARGET_COLS_NO_NUM = [
 def log(msg: str):
     print(f"[{datetime.now():%H:%M:%S}] {msg}")
 
+def success(msg: str):
+    GREEN = "\033[92m"; RESET = "\033[0m"
+    print(f"{GREEN}✅ {msg}{RESET}")
 
 def _normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = [str(c).strip() for c in df.columns]
     return df
-
 
 def _to_datetime(df: pd.DataFrame, cols):
     for c in cols:
@@ -67,15 +83,25 @@ def _to_datetime(df: pd.DataFrame, cols):
             df[c] = pd.to_datetime(df[c], errors="coerce")
     return df
 
-
 def safe_str(x) -> str:
     return "" if pd.isna(x) else str(x).strip()
-
 
 def safe_read_excel(path: Path, sheet_name: str | None = None) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(f"No se encontró el archivo: {path}")
     return pd.read_excel(path, sheet_name=sheet_name)
+
+def fmt_hora(x) -> str | pd._libs.tslibs.nattype.NaTType:
+    """Convierte un datetime/str en HH:MM:SS; devuelve pd.NA si no aplica."""
+    if pd.isna(x): 
+        return pd.NA
+    try:
+        dt = pd.to_datetime(x, errors="coerce")
+        if pd.isna(dt):
+            return pd.NA
+        return dt.strftime("%H:%M:%S")
+    except Exception:
+        return pd.NA
 # --------------------------------------
 
 
@@ -96,6 +122,7 @@ def load_change_request(path: Path, sheet: str) -> pd.DataFrame:
     if not must <= set(df.columns):
         raise KeyError(f"change_request debe incluir {must}. Columnas: {list(df.columns)}")
 
+    # Importante: conservar fecha+hora en Created/Updated
     df = _to_datetime(df, ["Created", "Updated"])
     keep = [c for c in ["Number", "Short description", "State", "Created", "Updated"] if c in df.columns]
     return df[keep].copy()
@@ -109,13 +136,6 @@ def load_tickets_diarios(path: Path, sheet: str) -> pd.DataFrame:
 
 # ----------- Parsing carpetas ----------
 def parse_for_finalizados(folder_name: str):
-    """
-    Lógica ACTUAL:
-      portal = segmento [4] (5.º)
-      desc   = segmento [5] (6.º)
-      ritm/inc y sctask por regex
-      third  = segmento [2] (3.º)
-    """
     ritm_inc_match = re.search(r"(RITM\d+|INC\d+)", folder_name, flags=re.IGNORECASE)
     sctask_match = re.search(r"(SCTASK\d+)", folder_name, flags=re.IGNORECASE)
     parts = folder_name.split("-")
@@ -126,19 +146,8 @@ def parse_for_finalizados(folder_name: str):
     third_segment = parts[2] if len(parts) > 2 else ""
     return ritm_inc, sctask, portal, descripcion, third_segment
 
-
 def parse_for_tickets(folder_name: str):
-    """
-    Estructura para 'Tickets':
-      [0]=Fecha, [1]=RITM/INC, [2]=SCTASK (u otro), [3]=Portal, [4]=Descripción, [*]=extras
-      - RITM/INC: segundo segmento si coincide; si no, regex
-      - SCTASK: regex en todo el nombre
-    """
-    import re
-
     parts = folder_name.split("-")
-
-    # RITM/INC
     ritm_inc = ""
     if len(parts) > 1 and re.match(r"^(RITM\d+|INC\d+)$", parts[1], flags=re.IGNORECASE):
         ritm_inc = parts[1].upper()
@@ -146,19 +155,18 @@ def parse_for_tickets(folder_name: str):
         m = re.search(r"(RITM\d+|INC\d+)", folder_name, flags=re.IGNORECASE)
         ritm_inc = m.group(0).upper() if m else ""
 
-    # SCTASK
     sctask_match = re.search(r"(SCTASK\d+)", folder_name, flags=re.IGNORECASE)
     sctask = sctask_match.group(0).upper() if sctask_match else ""
 
-    # 4.º segmento -> PORTAL ; 5.º -> DESCRIPCIÓN
-    portal = parts[3] if len(parts) > 3 else ""
-    descripcion = parts[4] if len(parts) > 4 else ""
-
-    # Devuelve también el 3er segmento por compatibilidad ascendente (si lo usas en otra parte)
+    portal = parts[2] if len(parts) > 2 else ""
+    descripcion = parts[3] if len(parts) > 3 else ""
     third_segment = parts[2] if len(parts) > 2 else ""
 
     return ritm_inc, sctask, portal, descripcion, third_segment
+# --------------------------------------
 
+
+# ------- CHG y meta desde change -------
 def find_chg_by_token(change_df: pd.DataFrame, token: str) -> str:
     token = safe_str(token)
     if not token or change_df.empty:
@@ -177,16 +185,28 @@ def find_chg_by_token(change_df: pd.DataFrame, token: str) -> str:
 
 
 def enrich_chg_meta(change_df: pd.DataFrame, chg: str) -> Dict[str, Any]:
-    out = {"CHG": chg or "", "State": pd.NA, "Created": pd.NA, "Updated": pd.NA}
+    """Devuelve CHG, State, Created, Updated, y AHORA también las horas."""
+    out = {
+        "CHG": chg or "",
+        "State": pd.NA,
+        "Created": pd.NA,
+        "Updated": pd.NA,
+        "Created_hora": pd.NA,   # <-- NUEVO
+        "Updated_hour": pd.NA    # <-- NUEVO
+    }
     if not chg or change_df.empty:
         return out
     row = change_df.loc[change_df["Number"].astype(str).str.upper() == chg.upper()]
     if row.empty:
         return out
     r = row.iloc[0]
+    # Fechas completas
     for k in ["State", "Created", "Updated"]:
         if k in r.index:
             out[k] = r[k]
+    # Horas derivadas (si hay datetime)
+    out["Created_hora"] = fmt_hora(out["Created"])
+    out["Updated_hour"] = fmt_hora(out["Updated"])
     return out
 # --------------------------------------
 
@@ -216,7 +236,6 @@ def autosize(ws):
             max_len = max(max_len, len(val))
         ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 2, 60)
 
-
 def style_dates(ws):
     date_style = NamedStyle(name="date_style", number_format="yyyy-mm-dd")
     header = [c.value for c in ws[1]]
@@ -227,7 +246,6 @@ def style_dates(ws):
                 cell = ws.cell(row=r, column=j)
                 if isinstance(cell.value, datetime):
                     cell.style = date_style
-
 
 def highlight_finalizados(ws):
     header = [c.value for c in ws[1]]
@@ -284,6 +302,8 @@ def build_sheet_rows(base_folder: Path,
             "State": meta.get("State", pd.NA),
             "Created": meta.get("Created", pd.NA),
             "Updated": meta.get("Updated", pd.NA),
+            "Created_hora": meta.get("Created_hora", pd.NA),  # <-- NUEVO
+            "Updated_hour": meta.get("Updated_hour", pd.NA),  # <-- NUEVO
         }
 
         if not drop_num:
@@ -299,8 +319,9 @@ def build_sheet_rows(base_folder: Path,
             df[c] = pd.NA
     df = df[target].copy()
 
+    # Convertir Created/Updated a datetime solo para FECHA (hora va en las nuevas columnas)
     for dc in ["Created", "Updated"]:
-        df[dc] = pd.to_datetime(df[dc], errors="coerce")
+        df[dc] = pd.to_datetime(df[dc], errors="coerce").dt.date
 
     subset_cols = ["RITM/INC", "SCTASK", "DESCRIPCIÓN", "PORTAL", "CHG"]
     df = df.drop_duplicates(subset=subset_cols, keep="first")
@@ -311,25 +332,15 @@ def build_sheet_rows(base_folder: Path,
 
 # ----------- MÉTRICAS (SOLO CERT) ----------
 def build_metrics_from_cert(df_cert: pd.DataFrame) -> pd.DataFrame:
-    """
-    Construye métricas SOLO desde CERT_PATH/hoja 'Tickets Diarios'.
-    Métrica actual: Conteo por ANALISTA QA.
-    """
     if "ANALISTA QA" not in df_cert.columns:
         raise KeyError("No se encontró la columna 'ANALISTA QA' en 'Tickets Diarios'.")
-
-    s = (df_cert["ANALISTA QA"]
-         .fillna("")
-         .astype(str)
-         .str.strip())
+    s = (df_cert["ANALISTA QA"].fillna("").astype(str).str.strip())
     s = s.replace({"": "SIN ASIGNAR"})
-
     metrics = (s.value_counts()
                  .rename("Conteo Total")
                  .reset_index()
                  .rename(columns={"index": "ANALISTA QA"})
-                 .sort_values(["Conteo Total", "ANALISTA QA"], ascending=[False, True])
-              )
+                 .sort_values(["Conteo Total", "ANALISTA QA"], ascending=[False, True]))
     return metrics[["ANALISTA QA", "Conteo Total"]]
 # -------------------------------------------
 
@@ -382,8 +393,6 @@ def main():
             df_metrics.to_excel(writer, sheet_name="Métricas", index=False)
 
         wb = load_workbook(EXPORT_PATH)
-
-        # Formato por hoja
         for sheet_name in ["Tickets", "Finalizados", "Métricas"]:
             ws = wb[sheet_name]
             if sheet_name in ["Tickets", "Finalizados"]:
@@ -393,9 +402,13 @@ def main():
             autosize(ws)
             ws.auto_filter.ref = ws.dimensions
             ws.freeze_panes = "A2"
-
         wb.save(EXPORT_PATH)
         log("OK. Listo.")
+
+        # Copia idéntica con nombre fijo
+        copyfile(EXPORT_PATH, EXPORT_PATH_LATEST)
+        success(f"Export principal: {EXPORT_PATH}")
+        success(f"Export nombre fijo: {EXPORT_PATH_LATEST}")
 
     except Exception as e:
         log(f"[ERROR] {e}")

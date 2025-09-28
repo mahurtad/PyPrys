@@ -11,7 +11,7 @@ SQL_DATABASE = "qa_liu_2025"
 SQL_USERNAME = "mahurtad"
 SQL_PASSWORD = "NICAMINICA"
 
-EXCEL_PATH   = r"C:\Users\manue\OneDrive - EduCorpPERU\Proyectos QA - 2025\Gestión Demanda Certificaciones LIUv1.xlsx"
+EXCEL_PATH   = r"C:\Users\manue\OneDrive - EduCorpPERU\Calidad de Software - Certificaciones\Gestión Demanda Certificaciones LIUv1.xlsx"
 EXCEL_SHEET  = "Tickets Diarios"
 LOCAL_COPY   = Path(r"C:\temp\liuv1.xlsx")   # copia local para evitar placeholders de OneDrive
 
