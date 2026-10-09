@@ -1,0 +1,56 @@
+@page
+@model PortafolioQA.Pages.Admin.Integraciones.IndexModel
+@{
+    ViewData["Title"] = "Integraciones";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Integraciones</h1>
+    <a asp-page="Create" class="btn btn-primary">Nueva asociación</a>
+</div>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+<div class="alert alert-secondary">
+    En esta etapa las integraciones solo registran la asociación entre un proyecto local y una fuente externa.
+    No hay conexión real con Squash TM ni Bugzilla todavía (etapas 4 y 5).
+</div>
+
+@if (!Model.Integraciones.Any())
+{
+    <div class="alert alert-info">No hay integraciones registradas todavía.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Proyecto</th>
+                <th>Herramienta</th>
+                <th>Identificador externo</th>
+                <th>Estado</th>
+                <th>Última sincronización</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var a in Model.Integraciones)
+            {
+                <tr>
+                    <td>@a.Proyecto?.Nombre</td>
+                    <td>@a.Herramienta.Texto()</td>
+                    <td>@a.IdentificadorExterno</td>
+                    <td><span class="badge @a.Estado.BadgeClase()">@a.Estado.Texto()</span></td>
+                    <td>@(a.UltimaSincronizacion?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                    <td>
+                        <a asp-page="Edit" asp-route-id="@a.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a asp-page="Delete" asp-route-id="@a.Id" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -1,0 +1,16 @@
+@page "{id:int}"
+@model PortafolioQA.Pages.Admin.Integraciones.DeleteModel
+@{
+    ViewData["Title"] = "Eliminar asociación externa";
+}
+
+<h1 class="h3 mb-3">Eliminar asociación externa</h1>
+
+<p>¿Confirmas eliminar la asociación de <strong>@Model.Integracion.Proyecto?.Nombre</strong> con
+   <strong>@Model.Integracion.Herramienta.Texto()</strong> (@Model.Integracion.IdentificadorExterno)?</p>
+
+<form method="post">
+    <input type="hidden" asp-for="Integracion.Id" />
+    <button type="submit" class="btn btn-danger">Confirmar</button>
+    <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+</form>

@@ -1,0 +1,19 @@
+@page "{id:int}"
+@model PortafolioQA.Pages.Admin.Sistemas.DeleteModel
+@{
+    ViewData["Title"] = Model.Sistema.Activo ? "Desactivar sistema" : "Activar sistema";
+}
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+
+<div class="alert alert-warning">
+    Los sistemas no se eliminan para conservar el historial de proyectos relacionados.
+</div>
+
+<p>¿Confirmas @((Model.Sistema.Activo ? "desactivar" : "activar")) <strong>@Model.Sistema.Nombre</strong>?</p>
+
+<form method="post">
+    <input type="hidden" asp-for="Sistema.Id" />
+    <button type="submit" class="btn btn-danger">Confirmar</button>
+    <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+</form>

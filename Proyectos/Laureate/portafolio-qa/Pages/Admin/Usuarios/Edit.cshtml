@@ -1,0 +1,52 @@
+@page "{id}"
+@model PortafolioQA.Pages.Admin.Usuarios.EditModel
+@{
+    ViewData["Title"] = "Editar usuario";
+}
+
+<h1 class="h3 mb-1">Editar usuario</h1>
+<p class="text-muted">@Model.Correo</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post" autocomplete="off">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Entrada.Nombres" class="form-label">Nombres</label>
+                    <input asp-for="Entrada.Nombres" class="form-control" />
+                    <span asp-validation-for="Entrada.Nombres" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Entrada.Apellidos" class="form-label">Apellidos</label>
+                    <input asp-for="Entrada.Apellidos" class="form-control" />
+                    <span asp-validation-for="Entrada.Apellidos" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Entrada.Rol" class="form-label">Rol</label>
+                <select asp-for="Entrada.Rol" class="form-select" asp-items="@(new SelectList(Model.RolesDisponibles))"></select>
+                <span asp-validation-for="Entrada.Rol" class="text-danger"></span>
+            </div>
+            <div class="form-check mb-3">
+                <input asp-for="Entrada.Activo" class="form-check-input" />
+                <label asp-for="Entrada.Activo" class="form-check-label">Activo (puede iniciar sesión)</label>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Entrada.NuevaContrasena" class="form-label">Restablecer contraseña (opcional)</label>
+                <input asp-for="Entrada.NuevaContrasena" class="form-control" autocomplete="new-password" />
+                <div class="form-text">Déjalo vacío para no cambiarla. Mínimo 10 caracteres, con mayúscula, minúscula y número.</div>
+            </div>
+            @if (Model.EsUnoMismo)
+            {
+                <div class="alert alert-info py-2">Es tu propia cuenta: no puedes desactivarla ni quitarte el rol de administrador.</div>
+            }
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

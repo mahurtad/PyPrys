@@ -1,0 +1,69 @@
+@page
+@model PortafolioQA.Pages.Admin.Hitos.IndexModel
+@{
+    ViewData["Title"] = "Hitos";
+}
+
+<h1 class="h3 mb-1">Hitos</h1>
+<p class="text-muted">Fechas clave de cada iniciativa (inicio de certificación, pase a producción, etc.). Se muestran en el Gantt y en el calendario.</p>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+@if (!Model.Proyectos.Any())
+{
+    <div class="alert alert-info">Registra al menos un proyecto activo para poder cargar hitos.</div>
+}
+else
+{
+    <form method="post" class="row g-2 align-items-start mb-4">
+        <div asp-validation-summary="ModelOnly" class="text-danger col-12"></div>
+        <div class="col-md-4">
+            <select asp-for="Nuevo.ProyectoId" class="form-select" asp-items="@(new SelectList(Model.Proyectos, "Id", "Nombre"))">
+                <option value="">Proyecto</option>
+            </select>
+            <span asp-validation-for="Nuevo.ProyectoId" class="text-danger"></span>
+        </div>
+        <div class="col-md-2">
+            <input asp-for="Nuevo.Fecha" type="date" class="form-control" />
+            <span asp-validation-for="Nuevo.Fecha" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <input asp-for="Nuevo.Nombre" class="form-control" placeholder="Nombre del hito" />
+            <span asp-validation-for="Nuevo.Nombre" class="text-danger"></span>
+        </div>
+        <div class="col-md-2"><button type="submit" class="btn btn-primary">Agregar</button></div>
+    </form>
+}
+
+@if (!Model.Hitos.Any())
+{
+    <div class="alert alert-info">No hay hitos registrados.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Fecha</th><th>Proyecto</th><th>Hito</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var h in Model.Hitos)
+            {
+                <tr>
+                    <td>@h.Fecha.ToString("dd/MM/yyyy")</td>
+                    <td>@h.Proyecto?.Nombre</td>
+                    <td>@h.Nombre</td>
+                    <td>
+                        <form method="post" asp-page-handler="Eliminar" asp-route-id="@h.Id" onsubmit="return confirm('¿Eliminar este hito?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

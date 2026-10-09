@@ -1,0 +1,72 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model PortafolioQA.Models.Asignacion
+@{
+    var proyectos = (List<PortafolioQA.Models.Proyecto>)ViewData["Proyectos"]!;
+    var recursos = (List<PortafolioQA.Models.RecursoQA>)ViewData["Recursos"]!;
+}
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+<div class="mb-3">
+    <label asp-for="ProyectoId" class="form-label"></label>
+    <select asp-for="ProyectoId" class="form-select">
+        <option value="">Selecciona un proyecto</option>
+        @foreach (var p in proyectos)
+        {
+            <option value="@p.Id" selected="@(p.Id == Model.ProyectoId)"
+                    data-inicio="@p.FechaInicio.ToString("yyyy-MM-dd")" data-fin="@p.FechaFin.ToString("yyyy-MM-dd")">@p.Nombre</option>
+        }
+    </select>
+    <span asp-validation-for="ProyectoId" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="RecursoQAId" class="form-label"></label>
+    <select asp-for="RecursoQAId" class="form-select" asp-items="@(new SelectList(recursos, "Id", "NombreCompleto"))">
+        <option value="">Selecciona un recurso QA</option>
+    </select>
+    <span asp-validation-for="RecursoQAId" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Rol" class="form-label"></label>
+    <input asp-for="Rol" class="form-control" placeholder="Ej. Analista QA, Líder QA" />
+    <span asp-validation-for="Rol" class="text-danger"></span>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="FechaInicio" class="form-label"></label>
+        <input asp-for="FechaInicio" class="form-control" type="date" />
+        <span asp-validation-for="FechaInicio" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="FechaFin" class="form-label"></label>
+        <input asp-for="FechaFin" class="form-control" type="date" />
+        <span asp-validation-for="FechaFin" class="text-danger"></span>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Porcentaje" class="form-label"></label>
+    <input asp-for="Porcentaje" class="form-control" type="number" step="0.01" min="0.01" max="100" />
+    <span asp-validation-for="Porcentaje" class="text-danger"></span>
+</div>
+
+@if (Model.Id == 0)
+{
+    <script>
+        (function () {
+            var proyecto = document.getElementById('ProyectoId');
+            var inicio = document.getElementById('FechaInicio');
+            var fin = document.getElementById('FechaFin');
+            if (!proyecto || !inicio || !fin) return;
+            proyecto.addEventListener('change', function () {
+                var opcion = proyecto.options[proyecto.selectedIndex];
+                if (!opcion || !opcion.dataset.inicio) return;
+                inicio.value = opcion.dataset.inicio;
+                fin.value = opcion.dataset.fin;
+            });
+        })();
+    </script>
+}

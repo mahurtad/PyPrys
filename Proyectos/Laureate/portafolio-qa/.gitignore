@@ -1,0 +1,21 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+
+## IDEs
+.vs/
+.vscode/
+*.swp
+
+## Secretos y configuración local — nunca versionar credenciales reales
+appsettings.*.local.json
+appsettings.Production.json
+*.pfx
+*.pem
+secrets.json
+
+## Logs y temporales
+*.log
+logs/

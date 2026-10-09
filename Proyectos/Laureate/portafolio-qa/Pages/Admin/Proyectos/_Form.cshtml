@@ -1,0 +1,120 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model PortafolioQA.Models.Proyecto
+@{
+    var instituciones = (List<PortafolioQA.Models.Institucion>)ViewData["Instituciones"]!;
+    var sistemas = (List<PortafolioQA.Models.Sistema>)ViewData["Sistemas"]!;
+    var sistemasSeleccionados = (List<int>)ViewData["SistemasSeleccionados"]!;
+    var recursosQA = ViewData["QAAsignados"] as List<string>;
+    var colPm = recursosQA is null ? "col-md-6" : "col-md-4";
+}
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+<div class="mb-3">
+    <label asp-for="Nombre" class="form-label"></label>
+    <input asp-for="Nombre" class="form-control" />
+    <span asp-validation-for="Nombre" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Descripcion" class="form-label"></label>
+    <textarea asp-for="Descripcion" class="form-control" rows="2"></textarea>
+    <span asp-validation-for="Descripcion" class="text-danger"></span>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="InstitucionId" class="form-label"></label>
+        <select asp-for="InstitucionId" class="form-select" asp-items="@(new SelectList(instituciones, "Id", "Nombre"))">
+            <option value="">Selecciona una institución</option>
+        </select>
+        <span asp-validation-for="InstitucionId" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="Tipo" class="form-label"></label>
+        <select asp-for="Tipo" class="form-select" asp-items="Html.GetEnumSelectList<PortafolioQA.Models.TipoIniciativa>()"></select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Estado</label>
+        <div><span class="badge @Model.Estado.BadgeClase()">@Model.Estado.Texto()</span></div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Avance</label>
+        <div class="progress" role="progressbar" aria-valuenow="@Model.Avance" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width:@Model.Avance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;@(Model.Avance > 0 ? "min-width:3rem" : "")">@Model.Avance.ToString("0.#")%</div>
+        </div>
+        <div class="form-text">Se calcula a partir del avance de las actividades no canceladas.</div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="@colPm mb-3">
+        <label asp-for="PM" class="form-label"></label>
+        <input asp-for="PM" class="form-control" />
+    </div>
+    <div class="@colPm mb-3">
+        <label asp-for="Lider" class="form-label"></label>
+        <input asp-for="Lider" class="form-control" />
+    </div>
+    @if (recursosQA is not null)
+    {
+        <div class="@colPm mb-3">
+            <label class="form-label">QA asignado</label>
+            <div class="form-control bg-body-secondary h-auto" style="min-height:38px">
+                @if (recursosQA.Any())
+                {
+                    @foreach (var r in recursosQA)
+                    {
+                        <span class="badge text-bg-light border me-1">@r</span>
+                    }
+                }
+                else
+                {
+                    <span class="text-muted">Sin asignar</span>
+                }
+            </div>
+            <div class="form-text">Se toma de <a asp-page="/Portafolio/Detalle" asp-route-id="@Model.Id" asp-fragment="equipo">Equipo y planificación</a>.</div>
+        </div>
+    }
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="FechaInicio" class="form-label"></label>
+        <input asp-for="FechaInicio" class="form-control" type="date" />
+        <span asp-validation-for="FechaInicio" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="FechaFin" class="form-label"></label>
+        <input asp-for="FechaFin" class="form-control" type="date" />
+        <span asp-validation-for="FechaFin" class="text-danger"></span>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Sistemas / periféricos impactados</label>
+    @if (!sistemas.Any())
+    {
+        <p class="text-muted">No hay sistemas activos registrados.</p>
+    }
+    else
+    {
+        @foreach (var s in sistemas)
+        {
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="SistemasSeleccionados" value="@s.Id" id="sis-@s.Id"
+                       checked="@sistemasSeleccionados.Contains(s.Id)" />
+                <label class="form-check-label" for="sis-@s.Id">@s.Nombre</label>
+            </div>
+        }
+    }
+</div>
+
+<div class="form-check mb-3">
+    <input asp-for="Activo" class="form-check-input" />
+    <label asp-for="Activo" class="form-check-label"></label>
+</div>
+

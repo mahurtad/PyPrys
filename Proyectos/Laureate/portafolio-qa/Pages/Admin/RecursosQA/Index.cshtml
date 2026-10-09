@@ -1,0 +1,68 @@
+@page
+@model PortafolioQA.Pages.Admin.RecursosQA.IndexModel
+@{
+    ViewData["Title"] = "Recursos QA";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Recursos QA</h1>
+    <a asp-page="Create" class="btn btn-primary">Nuevo recurso</a>
+</div>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+@if (!Model.Recursos.Any())
+{
+    <div class="alert alert-info">No hay recursos QA registrados todavía.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Nombres</th>
+                <th>Apellidos</th>
+                <th>Correo</th>
+                <th>Equipo</th>
+                <th>Capacidad disponible</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model.Recursos)
+            {
+                <tr>
+                    <td>@r.Nombres</td>
+                    <td>@r.Apellidos</td>
+                    <td>
+                        @r.Correo
+                        @if (r.UsuarioId == null)
+                        {
+                            <span class="badge bg-warning text-dark ms-1" title="No se puede asignar a proyectos hasta vincularlo a un usuario registrado">Sin usuario</span>
+                        }
+                    </td>
+                    <td>@r.Equipo.Texto()</td>
+                    <td>@r.CapacidadDisponible%</td>
+                    <td>
+                        @if (r.Activo)
+                        {
+                            <span class="badge bg-success">Activo</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactivo</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-page="Edit" asp-route-id="@r.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a asp-page="Delete" asp-route-id="@r.Id" class="btn btn-sm btn-outline-danger">@(r.Activo ? "Desactivar" : "Activar")</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

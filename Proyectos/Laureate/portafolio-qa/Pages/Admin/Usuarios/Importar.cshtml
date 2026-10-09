@@ -1,0 +1,76 @@
+@page
+@model PortafolioQA.Pages.Admin.Usuarios.ImportarModel
+@{
+    ViewData["Title"] = "Importar usuarios";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Importar usuarios (CSV)</h1>
+    <a asp-page="Index" class="btn btn-outline-secondary">&larr; Volver a usuarios</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <p class="mb-2">1. Descarga la plantilla, complétala y guárdala como <strong>CSV</strong>.</p>
+                <a asp-page-handler="Plantilla" class="btn btn-outline-primary btn-sm mb-3">Descargar plantilla</a>
+
+                <p class="mb-2">2. Sube el archivo:</p>
+                <form method="post" enctype="multipart/form-data">
+                    @if (Model.Error != null)
+                    {
+                        <div class="alert alert-danger py-2">@Model.Error</div>
+                    }
+                    <input asp-for="Archivo" type="file" accept=".csv" class="form-control mb-3" />
+                    <button type="submit" class="btn btn-primary">Importar</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="small text-muted mt-3">
+            <strong>Columnas:</strong>
+            <ul class="mb-1">
+                <li><strong>Nombres, Apellidos, Correo, Rol</strong> (obligatorias). Roles: @string.Join(", ", Model.RolesDisponibles).</li>
+                <li><strong>Contrasena</strong> (opcional): si la dejas vacía se genera una segura y se muestra una sola vez al terminar.</li>
+                <li><strong>Equipo</strong> (opcional: Change o RunBau): si la indicas, el usuario también se registra como recurso QA y podrá asignarse a proyectos. <strong>Capacidad</strong> (0–100, por defecto 100) solo aplica con Equipo.</li>
+            </ul>
+            Separador coma o punto y coma, máximo 500 filas y 1 MB. Los correos que ya existen se omiten (no se modifican).
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        @if (Model.Resultados.Any())
+        {
+            var creados = Model.Resultados.Count(r => r.Estado == "Creado");
+            var omitidos = Model.Resultados.Count(r => r.Estado == "Omitido");
+            var errores = Model.Resultados.Count(r => r.Estado == "Error");
+            <div class="alert @(errores > 0 ? "alert-warning" : "alert-success") py-2">
+                <strong>@creados</strong> creado(s) · <strong>@omitidos</strong> omitido(s) · <strong>@errores</strong> con error.
+            </div>
+            @if (Model.Resultados.Any(r => r.ContrasenaGenerada != null))
+            {
+                <div class="alert alert-info py-2 small">
+                    Las contraseñas generadas se muestran <strong>solo ahora</strong>. Cópialas y entrégalas por un canal seguro y pide a cada persona que la cambie al ingresar.
+                </div>
+            }
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Línea</th><th>Correo</th><th>Resultado</th><th>Detalle</th><th>Contraseña generada</th></tr></thead>
+                <tbody>
+                    @foreach (var r in Model.Resultados)
+                    {
+                        <tr>
+                            <td>@r.Fila</td>
+                            <td>@r.Correo</td>
+                            <td>
+                                <span class="badge @(r.Estado == "Creado" ? "bg-success" : r.Estado == "Omitido" ? "bg-secondary" : "bg-danger")">@r.Estado</span>
+                            </td>
+                            <td>@r.Detalle</td>
+                            <td>@if (r.ContrasenaGenerada != null) { <code>@r.ContrasenaGenerada</code> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

@@ -1,0 +1,16 @@
+@page "{id:int}"
+@model PortafolioQA.Pages.Admin.Asignaciones.DeleteModel
+@{
+    ViewData["Title"] = "Eliminar asignación";
+}
+
+<h1 class="h3 mb-3">Eliminar asignación</h1>
+
+<p>¿Confirmas eliminar la asignación de <strong>@Model.Asignacion.RecursoQA?.NombreCompleto</strong> en
+   <strong>@Model.Asignacion.Proyecto?.Nombre</strong>?</p>
+
+<form method="post">
+    <input type="hidden" asp-for="Asignacion.Id" />
+    <button type="submit" class="btn btn-danger">Confirmar</button>
+    <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+</form>

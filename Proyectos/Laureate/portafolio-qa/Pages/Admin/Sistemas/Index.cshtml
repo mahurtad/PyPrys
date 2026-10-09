@@ -1,0 +1,60 @@
+@page
+@model PortafolioQA.Pages.Admin.Sistemas.IndexModel
+@{
+    ViewData["Title"] = "Sistemas / periféricos";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Sistemas / periféricos</h1>
+    <div class="d-flex gap-2">
+        <a asp-page="Importar" class="btn btn-outline-primary">Importar CSV</a>
+        <a asp-page="Importar" asp-page-handler="Plantilla" class="btn btn-outline-secondary">Descargar plantilla</a>
+        <a asp-page="Create" class="btn btn-primary">Nuevo sistema</a>
+    </div>
+</div>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+@if (!Model.Sistemas.Any())
+{
+    <div class="alert alert-info">No hay sistemas registrados todavía.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Instituciones relacionadas</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Sistemas)
+            {
+                <tr>
+                    <td>@s.Nombre</td>
+                    <td>@string.Join(", ", s.Instituciones.Select(si => si.Institucion.Nombre))</td>
+                    <td>
+                        @if (s.Activo)
+                        {
+                            <span class="badge bg-success">Activo</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactivo</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-page="Edit" asp-route-id="@s.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a asp-page="Delete" asp-route-id="@s.Id" class="btn btn-sm btn-outline-danger">@(s.Activo ? "Desactivar" : "Activar")</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

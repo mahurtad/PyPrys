@@ -1,0 +1,19 @@
+@page "{id:int}"
+@model PortafolioQA.Pages.Admin.Proyectos.DeleteModel
+@{
+    ViewData["Title"] = Model.Proyecto.Activo ? "Desactivar proyecto" : "Activar proyecto";
+}
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+
+<div class="alert alert-warning">
+    Los proyectos no se eliminan para conservar el historial de asignaciones e integraciones.
+</div>
+
+<p>¿Confirmas @((Model.Proyecto.Activo ? "desactivar" : "activar")) <strong>@Model.Proyecto.Nombre</strong>?</p>
+
+<form method="post">
+    <input type="hidden" asp-for="Proyecto.Id" />
+    <button type="submit" class="btn btn-danger">Confirmar</button>
+    <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+</form>

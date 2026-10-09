@@ -1,0 +1,23 @@
+@page "{id:int}"
+@model PortafolioQA.Pages.Admin.Integraciones.EditModel
+@{
+    ViewData["Title"] = "Editar asociación externa";
+    ViewData["Proyectos"] = Model.Proyectos;
+}
+
+<h1 class="h3 mb-3">Editar asociación externa</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post">
+            <input type="hidden" asp-for="Integracion.Id" />
+            <partial name="_Form" for="Integracion" />
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

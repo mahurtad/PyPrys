@@ -1,0 +1,166 @@
+@page
+@model PortafolioQA.Pages.Planificacion.GanttModel
+@{
+    ViewData["Title"] = "Gantt";
+    var esRecurso = Model.Vista == "recurso";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h1 class="h3 mb-0">Gantt</h1>
+    <div class="btn-group" role="group" aria-label="Vista">
+        <a class="btn btn-sm @(esRecurso ? "btn-outline-primary" : "btn-primary")"
+           asp-page="Gantt" asp-route-vista="proyecto" asp-route-desde="@Model.Desde.ToString("yyyy-MM-dd")" asp-route-hasta="@Model.Hasta.ToString("yyyy-MM-dd")" asp-route-institucionId="@Model.InstitucionId" asp-route-asignaciones="@Model.MostrarAsignaciones">Por proyecto</a>
+        <a class="btn btn-sm @(esRecurso ? "btn-primary" : "btn-outline-primary")"
+           asp-page="Gantt" asp-route-vista="recurso" asp-route-desde="@Model.Desde.ToString("yyyy-MM-dd")" asp-route-hasta="@Model.Hasta.ToString("yyyy-MM-dd")" asp-route-institucionId="@Model.InstitucionId" asp-route-asignaciones="@Model.MostrarAsignaciones">Por recurso QA</a>
+    </div>
+</div>
+
+<form id="filtros-gantt" method="get" class="row g-2 align-items-end mb-3">
+    <input type="hidden" name="vista" value="@Model.Vista" />
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="desde">Desde</label>
+        <input id="desde" name="desde" type="date" class="form-control form-control-sm" value="@Model.Desde.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="hasta">Hasta</label>
+        <input id="hasta" name="hasta" type="date" class="form-control form-control-sm" value="@Model.Hasta.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="institucionId">Institución</label>
+        <select id="institucionId" name="institucionId" class="form-select form-select-sm">
+            <option value="">Todas</option>
+            @foreach (var i in Model.Instituciones)
+            {
+                <option value="@i.Id" selected="@(Model.InstitucionId == i.Id)">@i.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <div class="form-check form-switch mb-1">
+            <input id="asignaciones" name="asignaciones" type="checkbox" value="true" class="form-check-input" checked="@Model.MostrarAsignaciones" />
+            @* El hidden va DESPUÉS: el binder toma el primer valor, así "true" gana cuando está marcado y "false" solo llega si no. *@
+            <input type="hidden" name="asignaciones" value="false" />
+            <label class="form-check-label small" for="asignaciones">Mostrar asignaciones</label>
+        </div>
+    </div>
+    <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Aplicar</button></div>
+</form>
+
+@if (Model.Error != null)
+{
+    <div class="alert alert-warning py-2">@Model.Error</div>
+}
+
+<div class="gantt-leyenda small text-muted mb-2">
+    @if (esRecurso)
+    {
+        <span><span class="leyenda seg-libre"></span>Libre</span>
+        <span><span class="leyenda seg-parcial"></span>Carga parcial</span>
+        <span><span class="leyenda seg-completo"></span>Capacidad completa</span>
+        <span><span class="leyenda seg-sobreasignado"></span>Sobreasignado</span>
+        <span><span class="leyenda seg-ausente"></span>Ausente</span>
+        <span><span class="leyenda seg-nolaborable"></span>No laborable</span>
+        <span class="ms-2">· la franja superior de cada persona muestra su carga diaria; las barras inferiores son sus asignaciones</span>
+        @if (Model.InstitucionId.HasValue)
+        {
+            <span class="ms-2 text-warning-emphasis">· el filtro de institución solo afecta a las barras; la franja de carga considera todas las asignaciones</span>
+        }
+    }
+    else
+    {
+        <span><span class="leyenda gantt-proyecto"></span>Proyecto (relleno = avance del proyecto)</span>
+        <span><span class="leyenda gantt-asignacion"></span>Asignación QA (% = dedicación)</span>
+        <span><span class="hito-rombo"></span>Hito</span>
+    }
+    <span class="ms-2">· línea roja = hoy</span>
+</div>
+
+@if (!Model.Filas.Any())
+{
+    <div class="alert alert-info">No hay datos para mostrar en este periodo. Registra proyectos y asignaciones desde Administración.</div>
+}
+else
+{
+    <div class="gantt-scroll">
+        <div class="gantt">
+            <div class="gantt-fila gantt-cabecera">
+                <div class="gantt-etiqueta">@(esRecurso ? "Recurso QA / proyecto" : "Proyecto / recurso QA")</div>
+                <div class="gantt-linea">
+                    @foreach (var m in Model.Meses)
+                    {
+                        <div class="gantt-mes" style="left:@(m.Izquierda.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))%;width:@(m.Ancho.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))%">@m.Texto</div>
+                    }
+                </div>
+            </div>
+
+            @foreach (var fila in Model.Filas)
+            {
+                var resumen = Model.ResumenesPorFila.TryGetValue(fila, out var r) ? r : null;
+                <div class="gantt-fila @(fila.EsDetalle ? "gantt-detalle" : "gantt-principal")">
+                    <div class="gantt-etiqueta" title="@fila.Etiqueta">
+                        @if (fila.Enlace != null)
+                        {
+                            <a href="@fila.Enlace">@fila.Etiqueta</a>
+                        }
+                        else
+                        {
+                            <span>@fila.Etiqueta</span>
+                        }
+                        <small class="d-block text-muted text-truncate">@fila.Subtitulo</small>
+                    </div>
+                    <div class="gantt-linea">
+                        @foreach (var m in Model.Meses)
+                        {
+                            <div class="gantt-division" style="left:@(m.Izquierda.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                        }
+                        @if (Model.PosHoy.HasValue)
+                        {
+                            <div class="gantt-hoy" style="left:@(Model.PosHoy.Value.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                        }
+
+                        @if (resumen != null)
+                        {
+                            <div class="gantt-franja">
+                                @foreach (var s in Model.Segmentos(resumen))
+                                {
+                                    <div class="gantt-seg @s.Clase" title="@s.Titulo" style="left:@(s.Izq.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))%;width:@(s.Ancho.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))%">@s.Texto</div>
+                                }
+                            </div>
+                        }
+
+                        @foreach (var b in fila.Barras)
+                        {
+                            var estilo = Model.Estilo(b.Inicio, b.Fin);
+                            if (estilo == null) { continue; }
+                            <div class="gantt-barra @b.Clase" style="@estilo" title="@b.Titulo">
+                                @if (b.Avance.HasValue)
+                                {
+                                    <div class="gantt-avance" style="width:@(b.Avance.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                                }
+                                <span class="gantt-barra-texto">@b.Texto</span>
+                            </div>
+                        }
+
+                        @foreach (var h in fila.Hitos.Where(h => h.Fecha.Date >= Model.Desde && h.Fecha.Date <= Model.Hasta))
+                        {
+                            <div class="hito-rombo hito-posicion" title="@h.Titulo" style="left:@((Model.Posicion(h.Fecha) + Model.Ancho(1) / 2).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // Aplica los filtros al cambiar cualquier control; el botón "Aplicar" queda solo como respaldo sin JS.
+        (function () {
+            var form = document.getElementById('filtros-gantt');
+            if (!form) return;
+            var boton = form.querySelector('button[type="submit"]');
+            if (boton) boton.closest('.col-auto').classList.add('d-none');
+            form.addEventListener('change', function () { form.submit(); });
+        })();
+    </script>
+}
