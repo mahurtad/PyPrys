@@ -193,6 +193,10 @@ public class ConflictoCapacidad
     /// <summary>Porcentaje máximo que se puede asignar en TODO el tramo sin sobreasignar.</summary>
     public decimal LibreMinimo { get; init; }
     public bool HayAusencia { get; init; }
+    /// <summary>Ausencias del recurso que caen dentro del tramo en conflicto, p. ej. "Vacaciones 09/10/2026".</summary>
+    public IReadOnlyList<string> Ausencias { get; init; } = Array.Empty<string>();
+    /// <summary>Primer día laborable posterior al tramo en el que la asignación sí cabe; null si no hay en el periodo.</summary>
+    public DateTime? InicioSugerido { get; init; }
     public IReadOnlyList<string> Proyectos { get; init; } = Array.Empty<string>();
 }
 
@@ -251,6 +255,13 @@ public class CapacidadService
 
         List<(DiaCarga Dia, decimal Existente)>? actual = null;
 
+        var ausencias = await _context.Ausencias.AsNoTracking()
+            .Where(a => a.RecursoQAId == recursoId && a.FechaFin >= desde.Date && a.FechaInicio <= hasta.Date)
+            .OrderBy(a => a.FechaInicio).ToListAsync();
+        var diasLibres = resumen.Dias.Where(d => d.Laborable
+                && d.Carga - d.Asignaciones.Where(a => a.Id == excluirAsignacionId).Sum(a => a.Porcentaje) + porcentaje <= d.Capacidad)
+            .Select(d => d.Fecha.Date).ToList();
+
         void Cerrar()
         {
             if (actual is null) return;
@@ -264,6 +275,12 @@ public class CapacidadService
                 ExistenteMaximo = actual.Max(x => x.Existente),
                 LibreMinimo = actual.Min(x => Math.Max(0, x.Dia.Capacidad - x.Existente)),
                 HayAusencia = actual.Any(x => x.Dia.Ausente),
+                Ausencias = ausencias
+                    .Where(a => a.FechaFin.Date >= actual.First().Dia.Fecha.Date && a.FechaInicio.Date <= actual.Last().Dia.Fecha.Date)
+                    .Select(a => a.FechaInicio.Date == a.FechaFin.Date
+                        ? $"{a.Tipo.Texto()} {a.FechaInicio:dd/MM/yyyy}"
+                        : $"{a.Tipo.Texto()} {a.FechaInicio:dd/MM/yyyy} – {a.FechaFin:dd/MM/yyyy}").ToList(),
+                InicioSugerido = diasLibres.Where(f => f > actual.Last().Dia.Fecha.Date).Select(f => (DateTime?)f).FirstOrDefault(),
                 Proyectos = actual.SelectMany(x => x.Dia.Asignaciones)
                     .Where(a => a.Id != excluirAsignacionId)
                     .Select(a => a.Proyecto?.Nombre ?? ("Proyecto " + a.ProyectoId))

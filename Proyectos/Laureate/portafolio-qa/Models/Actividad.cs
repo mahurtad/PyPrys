@@ -12,6 +12,7 @@ public enum EstadoActividad
 
 public class Actividad
 {
+
     public bool EsPredeterminada { get; set; }
     public int Orden { get; set; }
 

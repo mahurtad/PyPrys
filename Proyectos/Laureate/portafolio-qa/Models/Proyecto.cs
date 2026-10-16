@@ -10,6 +10,12 @@ public class Proyecto
     [BindNever]
     public decimal? AvanceLegado { get; set; }
 
+    /// <summary>Proyecto equivalente en Squash TM (1 a 1). Con vínculo, el avance sale de la ejecución de pruebas.</summary>
+    [Display(Name = "Proyecto en Squash TM")]
+    public int? SquashProjectId { get; set; }
+    [BindNever]
+    public DateTime? SquashSincronizadoEn { get; set; }
+
     public int Id { get; set; }
 
     [Required(ErrorMessage = "El nombre es obligatorio.")]
@@ -29,6 +35,9 @@ public class Proyecto
 
     [BindNever]
     public EstadoProyecto Estado { get; set; } = EstadoProyecto.Planificado;
+
+    [StringLength(150)]
+    public string? BPO { get; set; }
 
     [StringLength(150)]
     public string? PM { get; set; }
@@ -58,6 +67,10 @@ public class Proyecto
     public List<Hito> Hitos { get; set; } = new();
     [BindNever]
     public List<Actividad> Actividades { get; set; } = new();
+    [BindNever]
+    public List<Acuerdo> Acuerdos { get; set; } = new();
+    [BindNever]
+    public List<SquashCampana> SquashCampanas { get; set; } = new();
     public List<AsociacionExterna> Integraciones { get; set; } = new();
     [BindNever]
     public List<CierreProyectoRegistro> Cierres { get; set; } = new();

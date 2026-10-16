@@ -75,7 +75,16 @@ else
                     <td class="text-nowrap small">@p.FechaInicio.ToString("dd/MM/yyyy") – @p.FechaFin.ToString("dd/MM/yyyy")</td>
                     <td><span class="badge @p.Estado.BadgeClase()">@p.Estado.Texto()</span> @if (!p.Activo) { <span class="badge bg-secondary">Inactivo</span> }</td>
                     <td>@p.Avance% @if (p.AvancePendienteConfirmar) { <span class="badge bg-warning text-dark">Avance por confirmar</span> }</td>
-                    <td>@(p.Asignaciones.Any() ? string.Join(", ", p.Asignaciones.Select(a => a.RecursoQA?.NombreCompleto).Distinct()) : "—")</td>
+                    <td>
+                        @{ var recursos = p.Asignaciones.Select(a => a.RecursoQA?.NombreCompleto).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList(); }
+                        @if (recursos.Any())
+                        {
+                            <div class="chips-recursos">
+                                @foreach (var r in recursos) { <span class="chip-recurso">@r</span> }
+                            </div>
+                        }
+                        else { <span>—</span> }
+                    </td>
                     <td>
                         <a asp-page="/Portafolio/Detalle" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary">Ver</a>
                         <a asp-page="Edit" asp-route-id="@p.Id" class="btn btn-sm btn-outline-secondary">Editar</a>

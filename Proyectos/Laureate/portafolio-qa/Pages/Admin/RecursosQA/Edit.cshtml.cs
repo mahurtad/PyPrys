@@ -53,6 +53,12 @@ public class EditModel : PageModel
             ModelState.AddModelError($"{nameof(Recurso)}.{nameof(Recurso.UsuarioId)}", "Ese usuario ya está registrado como otro recurso QA.");
         }
 
+        var loginSquash = string.IsNullOrWhiteSpace(Recurso.SquashLogin) ? usuario?.Email : Recurso.SquashLogin.Trim();
+        if (!string.IsNullOrWhiteSpace(loginSquash) && await _context.RecursosQA.AnyAsync(r => r.Id != Recurso.Id && r.SquashLogin == loginSquash))
+        {
+            ModelState.AddModelError($"{nameof(Recurso)}.{nameof(Recurso.SquashLogin)}", "Ese login de Squash TM ya está asignado a otro recurso.");
+        }
+
         if (!ModelState.IsValid || usuario is null)
         {
             await CargarUsuariosAsync(existente.UsuarioId);
@@ -63,6 +69,7 @@ public class EditModel : PageModel
         existente.Nombres = usuario.Nombres;
         existente.Apellidos = usuario.Apellidos;
         existente.Correo = usuario.Email ?? usuario.UserName ?? string.Empty;
+        existente.SquashLogin = loginSquash;
         existente.Equipo = Recurso.Equipo;
         existente.CapacidadDisponible = Recurso.CapacidadDisponible;
         existente.Activo = Recurso.Activo;

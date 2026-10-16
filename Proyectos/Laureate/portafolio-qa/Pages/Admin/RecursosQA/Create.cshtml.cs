@@ -43,6 +43,12 @@ public class CreateModel : PageModel
             ModelState.AddModelError($"{nameof(Recurso)}.{nameof(Recurso.UsuarioId)}", "Ese usuario ya está registrado como recurso QA.");
         }
 
+        var loginSquash = string.IsNullOrWhiteSpace(Recurso.SquashLogin) ? usuario?.Email : Recurso.SquashLogin.Trim();
+        if (!string.IsNullOrWhiteSpace(loginSquash) && await _context.RecursosQA.AnyAsync(r => r.SquashLogin == loginSquash))
+        {
+            ModelState.AddModelError($"{nameof(Recurso)}.{nameof(Recurso.SquashLogin)}", "Ese login de Squash TM ya está asignado a otro recurso.");
+        }
+
         if (!ModelState.IsValid || usuario is null)
         {
             await CargarUsuariosAsync(null);
@@ -52,6 +58,7 @@ public class CreateModel : PageModel
         Recurso.Nombres = usuario.Nombres;
         Recurso.Apellidos = usuario.Apellidos;
         Recurso.Correo = usuario.Email ?? usuario.UserName ?? string.Empty;
+        Recurso.SquashLogin = loginSquash;
         _context.RecursosQA.Add(Recurso);
         await _context.SaveChangesAsync();
 

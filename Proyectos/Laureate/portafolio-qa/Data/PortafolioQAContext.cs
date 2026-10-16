@@ -26,6 +26,11 @@ public class PortafolioQAContext : IdentityDbContext<UsuarioApp>
     public DbSet<CierreParticipante> CierreParticipantes => Set<CierreParticipante>();
     public DbSet<CierreActividad> CierreActividades => Set<CierreActividad>();
     public DbSet<ActividadAuditoria> ActividadAuditorias => Set<ActividadAuditoria>();
+    public DbSet<Acuerdo> Acuerdos => Set<Acuerdo>();
+    public DbSet<AcuerdoActividad> AcuerdoActividades => Set<AcuerdoActividad>();
+    public DbSet<SquashCampana> SquashCampanas => Set<SquashCampana>();
+    public DbSet<SquashIteracion> SquashIteraciones => Set<SquashIteracion>();
+    public DbSet<SquashCaso> SquashCasos => Set<SquashCaso>();
 
     private void ValidarActividades()
     {
@@ -176,6 +181,45 @@ public class PortafolioQAContext : IdentityDbContext<UsuarioApp>
             .HasOne(a => a.Proyecto).WithMany()
             .HasForeignKey(a => a.ProyectoId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<ActividadAuditoria>().HasIndex(a => new { a.ProyectoId, a.Fecha });
+
+        modelBuilder.Entity<Acuerdo>()
+            .HasOne(a => a.Proyecto).WithMany(p => p.Acuerdos)
+            .HasForeignKey(a => a.ProyectoId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Acuerdo>()
+            .HasOne(a => a.RecursoQA).WithMany()
+            .HasForeignKey(a => a.RecursoQAId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Acuerdo>().HasIndex(a => new { a.ProyectoId, a.Numero }).IsUnique();
+
+        // SQL Server no admite dos rutas de cascada (Proyecto→Actividad y Proyecto→Acuerdo): el vínculo cae con el
+        // acuerdo; al eliminar una actividad se quitan sus vínculos explícitamente (Edit.cshtml.cs).
+        modelBuilder.Entity<Proyecto>().HasIndex(p => p.SquashProjectId).IsUnique().HasFilter("[SquashProjectId] IS NOT NULL");
+        modelBuilder.Entity<RecursoQA>().HasIndex(r => r.SquashLogin).IsUnique().HasFilter("[SquashLogin] IS NOT NULL");
+
+        modelBuilder.Entity<SquashCampana>()
+            .HasOne(c => c.Proyecto).WithMany(p => p.SquashCampanas)
+            .HasForeignKey(c => c.ProyectoId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<SquashCampana>().HasIndex(c => new { c.ProyectoId, c.SquashId }).IsUnique();
+        modelBuilder.Entity<SquashIteracion>()
+            .HasOne(i => i.SquashCampana).WithMany(c => c.Iteraciones)
+            .HasForeignKey(i => i.SquashCampanaId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<SquashIteracion>().HasIndex(i => new { i.SquashCampanaId, i.SquashId }).IsUnique();
+        modelBuilder.Entity<SquashIteracion>().Property(i => i.Porcentaje).HasPrecision(5, 2);
+        modelBuilder.Entity<SquashCaso>()
+            .HasOne(k => k.SquashIteracion).WithMany(i => i.Casos)
+            .HasForeignKey(k => k.SquashIteracionId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<SquashCaso>()
+            .HasOne(k => k.RecursoQA).WithMany()
+            .HasForeignKey(k => k.RecursoQAId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<SquashCaso>().HasIndex(k => new { k.SquashIteracionId, k.SquashItemId }).IsUnique();
+        modelBuilder.Entity<SquashCaso>().Property(k => k.Porcentaje).HasPrecision(5, 2);
+
+        modelBuilder.Entity<AcuerdoActividad>().HasKey(x => new { x.AcuerdoId, x.ActividadId });
+        modelBuilder.Entity<AcuerdoActividad>()
+            .HasOne(x => x.Acuerdo).WithMany(a => a.Actividades)
+            .HasForeignKey(x => x.AcuerdoId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<AcuerdoActividad>()
+            .HasOne(x => x.Actividad).WithMany()
+            .HasForeignKey(x => x.ActividadId).OnDelete(DeleteBehavior.Restrict);
 
         foreach (var decimalProperty in modelBuilder.Model.GetEntityTypes()
                      .SelectMany(t => t.GetProperties())

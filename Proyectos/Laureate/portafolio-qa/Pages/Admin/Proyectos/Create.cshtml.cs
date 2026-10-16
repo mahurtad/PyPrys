@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PortafolioQA.Data;
 using PortafolioQA.Models;
 using PortafolioQA.Services;
+using PortafolioQA.Services.Integrations;
 
 namespace PortafolioQA.Pages.Admin.Proyectos;
 
@@ -11,11 +12,33 @@ public class CreateModel : PageModel
 {
     private readonly PortafolioQAContext _context;
     private readonly CapacidadService _capacidad;
+    private readonly ISquashApi _squash;
 
-    public CreateModel(PortafolioQAContext context, CapacidadService capacidad)
+    public CreateModel(PortafolioQAContext context, CapacidadService capacidad, ISquashApi squash)
     {
         _context = context;
         _capacidad = capacidad;
+        _squash = squash;
+    }
+
+    /// <summary>Todos los proyectos de Squash TM (para validar).</summary>
+    public List<SquashProyectoDto> SquashProyectos { get; set; } = new();
+    /// <summary>Los que aún no están vinculados a un proyecto del portafolio: lo único que se ofrece al crear.</summary>
+    public List<SquashProyectoDto> SquashDisponibles { get; set; } = new();
+    /// <summary>Crear un proyecto sin Squash (nombre manual) es una salida reservada al administrador.</summary>
+    public bool PuedeManual => User.IsInRole(Roles.Administrador);
+    public string? SquashError { get; set; }
+    private bool _squashCargado;
+
+    private async Task CargarSquashAsync()
+    {
+        if (_squashCargado) return;
+        _squashCargado = true;
+        var r = await _squash.ListarProyectosAsync();
+        SquashProyectos = r.Datos ?? new();
+        SquashError = r.Ok ? null : r.Error;
+        var vinculados = await _context.Proyectos.Where(p => p.SquashProjectId != null).Select(p => p.SquashProjectId!.Value).ToListAsync();
+        SquashDisponibles = SquashProyectos.Where(p => !vinculados.Contains(p.Id)).ToList();
     }
 
     [BindProperty]
@@ -75,6 +98,29 @@ public class CreateModel : PageModel
             ModelState.AddModelError(nameof(AsignacionesIniciales), "Un mismo recurso QA no puede repetirse en el proyecto.");
         }
 
+        await CargarSquashAsync();
+        var errorSquash = await SquashSincronizacion.ValidarVinculoAsync(_context, Proyecto.SquashProjectId, 0, SquashError is null ? SquashProyectos : null);
+        if (errorSquash is not null) ModelState.AddModelError($"{nameof(Proyecto)}.{nameof(Proyecto.SquashProjectId)}", errorSquash);
+
+        if (Proyecto.SquashProjectId is int vinculado)
+        {
+            // El nombre es el de Squash TM; lo que llegue escrito a mano se ignora.
+            var nombreSquash = SquashProyectos.FirstOrDefault(p => p.Id == vinculado)?.Nombre;
+            if (!string.IsNullOrWhiteSpace(nombreSquash))
+            {
+                Proyecto.Nombre = nombreSquash.Length <= 200 ? nombreSquash : nombreSquash[..200];
+                ModelState.Remove($"{nameof(Proyecto)}.{nameof(Proyecto.Nombre)}");
+            }
+        }
+        else if (!PuedeManual)
+        {
+            ModelState.AddModelError($"{nameof(Proyecto)}.{nameof(Proyecto.SquashProjectId)}", "Selecciona el proyecto de Squash TM. Crear un proyecto sin Squash solo lo puede hacer un administrador.");
+        }
+        else if (SquashError is null && SquashProyectos.Any(p => string.Equals(p.Nombre.Trim(), (Proyecto.Nombre ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            ModelState.AddModelError($"{nameof(Proyecto)}.{nameof(Proyecto.Nombre)}", "Ese proyecto ya existe en Squash TM: selecciónalo de la lista en lugar de crearlo a mano.");
+        }
+
         var idsValidos = await _context.RecursosQA.Where(r => r.Activo && r.UsuarioId != null).Select(r => r.Id).ToListAsync();
         if (AsignacionesIniciales.Any(a => !idsValidos.Contains(a.RecursoQAId)))
         {
@@ -119,7 +165,18 @@ public class CreateModel : PageModel
         }).ToList();
 
         _context.Proyectos.Add(Proyecto);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (Proyecto.SquashProjectId is not null)
+        {
+            // Otro usuario vinculó ese proyecto de Squash un instante antes (índice único).
+            ModelState.AddModelError($"{nameof(Proyecto)}.{nameof(Proyecto.SquashProjectId)}", "Ese proyecto de Squash TM acaba de ser vinculado a otro proyecto del portafolio.");
+            _context.ChangeTracker.Clear();
+            await CargarCatalogosAsync();
+            return Page();
+        }
         var avisos = new List<string>();
         foreach (var a in Proyecto.Asignaciones)
         {
@@ -140,6 +197,7 @@ public class CreateModel : PageModel
         Instituciones = await _context.Instituciones.Where(i => i.Activo).OrderBy(i => i.Nombre).ToListAsync();
         Sistemas = await _context.Sistemas.Where(s => s.Activo).OrderBy(s => s.Nombre).ToListAsync();
         Recursos = await _context.RecursosQA.Where(r => r.Activo && r.UsuarioId != null).OrderBy(r => r.Nombres).ToListAsync();
+        await CargarSquashAsync();
     }
 }
 
@@ -149,3 +207,4 @@ public class AsignacionInicial
     public string Rol { get; set; } = "Analista QA";
     public decimal Porcentaje { get; set; } = 100;
 }
+

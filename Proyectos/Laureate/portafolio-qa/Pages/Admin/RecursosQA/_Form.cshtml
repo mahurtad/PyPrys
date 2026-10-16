@@ -17,6 +17,12 @@
     <div class="form-text">Los nombres, apellidos y correo se toman del usuario. Si no aparece, créalo primero en Administración → Usuarios.</div>
     <span asp-validation-for="UsuarioId" class="text-danger"></span>
 </div>
+<div class="mb-3">
+    <label asp-for="SquashLogin" class="form-label"></label>
+    <input asp-for="SquashLogin" class="form-control" maxlength="100" placeholder="Si lo dejas vacío se usa el correo" />
+    <div class="form-text">Login de esta persona en Squash TM. Vincula los casos que Squash le asigna con este recurso.</div>
+    <span asp-validation-for="SquashLogin" class="text-danger"></span>
+</div>
 <div class="row">
     <div class="col-md-6 mb-3">
         <label asp-for="Equipo" class="form-label"></label>

@@ -6,13 +6,22 @@
     var sistemasSeleccionados = (List<int>)ViewData["SistemasSeleccionados"]!;
     var recursosQA = ViewData["QAAsignados"] as List<string>;
     var colPm = recursosQA is null ? "col-md-6" : "col-md-4";
+    var squashProyectos = ViewData["SquashProyectos"] as List<PortafolioQA.Services.Integrations.SquashProyectoDto> ?? new();
+    var squashError = ViewData["SquashError"] as string;
+    var puedeManual = ViewData["SquashPuedeManual"] as bool? ?? false;
+    var esAlta = Model.Id == 0;
+    var vinculado = Model.SquashProjectId is not null;
 }
 
 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
 <div class="mb-3">
     <label asp-for="Nombre" class="form-label"></label>
-    <input asp-for="Nombre" class="form-control" />
+    <input asp-for="Nombre" class="form-control" readonly="@(vinculado || (esAlta && !puedeManual))" />
+    @if (vinculado)
+    {
+        <div class="form-text">El nombre es el del proyecto en Squash TM y se actualiza con cada sincronización.</div>
+    }
     <span asp-validation-for="Nombre" class="text-danger"></span>
 </div>
 
@@ -52,6 +61,10 @@
 
 <div class="row">
     <div class="@colPm mb-3">
+        <label asp-for="BPO" class="form-label"></label>
+        <input asp-for="BPO" class="form-control" />
+    </div>
+    <div class="@colPm mb-3">
         <label asp-for="PM" class="form-label"></label>
         <input asp-for="PM" class="form-control" />
     </div>
@@ -63,12 +76,12 @@
     {
         <div class="@colPm mb-3">
             <label class="form-label">QA asignado</label>
-            <div class="form-control bg-body-secondary h-auto" style="min-height:38px">
+            <div class="form-control h-auto" style="min-height:38px;background-color:#e9ecef">
                 @if (recursosQA.Any())
                 {
                     @foreach (var r in recursosQA)
                     {
-                        <span class="badge text-bg-light border me-1">@r</span>
+                        <span class="badge bg-light text-dark border me-1">@r</span>
                     }
                 }
                 else
@@ -79,6 +92,49 @@
             <div class="form-text">Se toma de <a asp-page="/Portafolio/Detalle" asp-route-id="@Model.Id" asp-fragment="equipo">Equipo y planificación</a>.</div>
         </div>
     }
+</div>
+
+<div class="mb-3">
+    <label asp-for="SquashProjectId" class="form-label"></label>
+    <select asp-for="SquashProjectId" class="form-select" required="@(esAlta && !puedeManual)" data-bloquea-sin-vinculo="@((esAlta && !puedeManual) ? "true" : "false")">
+        @if (esAlta && puedeManual)
+        {
+            <option value="">Sin Squash (manual): solo si el proyecto no existe en Squash TM</option>
+        }
+        else if (esAlta)
+        {
+            <option value="">Selecciona un proyecto de Squash TM…</option>
+        }
+        else if (!vinculado)
+        {
+            <option value="">Sin vincular (avance manual por actividades)</option>
+        }
+        else if (puedeManual)
+        {
+            <option value="">Desvincular de Squash TM (avance manual)</option>
+        }
+        @foreach (var sp in squashProyectos)
+        {
+            <option value="@sp.Id" selected="@(sp.Id == Model.SquashProjectId)">@sp.Nombre</option>
+        }
+        @if (Model.SquashProjectId is not null && squashProyectos.All(x => x.Id != Model.SquashProjectId))
+        {
+            <option value="@Model.SquashProjectId" selected>Proyecto @Model.SquashProjectId de Squash TM</option>
+        }
+    </select>
+    @if (squashError is not null)
+    {
+        <div class="form-text text-warning">No se pudo leer la lista de Squash TM: @squashError</div>
+    }
+    else
+    {
+        <div class="form-text">
+            Solo se listan los proyectos de Squash TM que aún no están en el portafolio. Al elegir uno, el nombre se toma de Squash y el avance sale de la ejecución de pruebas.
+            @if (esAlta && puedeManual) { <text> Crear sin Squash solo corresponde si el proyecto no existe allí.</text> }
+        </div>
+    }
+    <span asp-validation-for="SquashProjectId" class="text-danger"></span>
+
 </div>
 
 <div class="row">
@@ -117,4 +173,21 @@
     <input asp-for="Activo" class="form-check-input" />
     <label asp-for="Activo" class="form-check-label"></label>
 </div>
+
+<script>
+    // Al elegir un proyecto de Squash el nombre se toma de la lista y queda de solo lectura; sin vínculo (solo administrador) se escribe a mano.
+    (function () {
+        var sel = document.querySelector('[name="Proyecto.SquashProjectId"]');
+        var nom = document.querySelector('[name="Proyecto.Nombre"]');
+        if (!sel || !nom) return;
+        sel.addEventListener('change', function () {
+            if (sel.value) { nom.value = sel.options[sel.selectedIndex].text; nom.readOnly = true; }
+            else {
+                var bloquea = sel.dataset.bloqueaSinVinculo === 'true';
+                nom.readOnly = bloquea;
+                if (bloquea) nom.value = '';
+            }
+        });
+    })();
+</script>
 

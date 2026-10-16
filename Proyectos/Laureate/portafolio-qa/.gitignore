@@ -19,3 +19,12 @@ secrets.json
 ## Logs y temporales
 *.log
 logs/
+
+dist/
+
+# Servicios locales
+infra/local/.env
+infra/local/credentials.local.txt
+
+
+infra/local/*.local.json

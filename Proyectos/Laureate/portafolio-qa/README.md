@@ -7,7 +7,16 @@ certificación desde Squash TM y defectos desde Bugzilla.
 Consulta [INSTRUCTIVO.md](INSTRUCTIVO.md) para el alcance completo. Estado:
 **etapa 1** (prototipo: tarjetas, tabla, filtros, detalle y administración) y
 **etapa 2** (planificación: Gantt, calendario y capacidad) y **etapa 3**
-(autenticación, roles y despliegue). No incluye conexiones reales a Squash TM/Bugzilla.
+(autenticación, roles y despliegue), con clientes reales para Squash TM y Bugzilla.
+
+## Squash TM y Bugzilla locales
+
+La configuración actual usa **http://localhost:8090/squash** y **http://localhost:8080**.
+La instalación, el inicio y las asociaciones se describen en [infra/local/README.md](infra/local/README.md).
+Squash TM dispone de cliente REST y sincronización de campañas, iteraciones y casos.
+Bugzilla dispone de cliente REST y consulta de defectos por producto en el detalle de la iniciativa.
+Las credenciales se almacenan en `dotnet user-secrets`; SQL Server sigue siendo la base del portafolio.
+Las secciones de etapas que siguen describen el alcance histórico del prototipo.
 
 ## Tecnología
 
@@ -76,9 +85,9 @@ INSTRUCTIVO.md, sección 4). Para ver datos en el portafolio:
    fechas y sistemas impactados.
 5. Desde el detalle del proyecto (o desde **Administración → Asignaciones**)
    agrega recursos QA al proyecto con fechas, rol y porcentaje de dedicación.
-6. (Opcional) Desde **Administración → Integraciones** asocia el proyecto con
-   un identificador externo de Squash TM o Bugzilla. En esta etapa solo se
-   guarda la asociación; no hay sincronización real todavía.
+6. Desde **Administración → Proyectos** vincula el proyecto de Squash TM y
+   sincroniza su ejecución. Desde **Administración → Integraciones** asocia
+   Bugzilla usando el nombre exacto del producto para consultar sus defectos.
 
 Todos los cambios persisten en SQL Server y se conservan al recargar.
 
@@ -163,7 +172,7 @@ Toda la aplicación exige iniciar sesión (cuentas locales con ASP.NET Core Iden
 | `Services` | `CapacidadService` / `CalculadoraCapacidad` (cálculo de carga y disponibilidad) |
 | `Models` | Entidades y enumeraciones del dominio |
 | `Data` | `PortafolioQAContext` (EF Core) |
-| `Services/Integrations` | Contratos para Squash TM y Bugzilla; implementaciones "no configuradas" hasta las etapas 4 y 5 |
+| `Services/Integrations` | Clientes REST de Squash TM y Bugzilla; sin credenciales muestran integración no configurada |
 | `wwwroot` | Bootstrap, jQuery y JavaScript propio (alternancia tarjetas/tabla) |
 
 ## Reglas de negocio ya implementadas
@@ -177,7 +186,7 @@ Toda la aplicación exige iniciar sesión (cuentas locales con ASP.NET Core Iden
 - Tarjetas y tabla del portafolio comparten los mismos filtros y el mismo
   conjunto de datos.
 
-## Pendiente para próximas etapas
+## Integraciones disponibles
 
-- Etapa 4: cliente real de Squash TM (reemplaza `IntegracionCertificacionNoConfigurada`).
-- Etapa 5: cliente real de Bugzilla (reemplaza `IntegracionDefectosNoConfigurada`).
+- Squash TM: cliente REST, vínculo de proyecto y sincronización de ejecución.
+- Bugzilla: consulta REST de defectos por producto y enlaces desde el detalle.

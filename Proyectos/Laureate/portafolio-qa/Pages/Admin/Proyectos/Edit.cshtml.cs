@@ -4,16 +4,19 @@ using Microsoft.EntityFrameworkCore;
 using PortafolioQA.Data;
 using PortafolioQA.Models;
 using PortafolioQA.Services;
+using PortafolioQA.Services.Integrations;
 
 namespace PortafolioQA.Pages.Admin.Proyectos;
 
 public class EditModel : PageModel
 {
     private readonly PortafolioQAContext _context;
+    private readonly ISquashApi _squash;
 
-    public EditModel(PortafolioQAContext context)
+    public EditModel(PortafolioQAContext context, ISquashApi squash)
     {
         _context = context;
+        _squash = squash;
     }
 
     [BindProperty]
@@ -30,6 +33,13 @@ public class EditModel : PageModel
     /// <summary>QA que se muestran en el formulario: las asignaciones vigentes o, en un proyecto cerrado sin ellas, el equipo del cierre.</summary>
     public List<string> QAAsignados { get; set; } = new();
     public List<ActividadAuditoria> Auditoria { get; set; } = new();
+    public List<Acuerdo> Acuerdos { get; set; } = new();
+    public List<SquashProyectoDto> SquashProyectos { get; set; } = new();
+    public string? SquashError { get; set; }
+    /// <summary>Proyectos de Squash TM que se pueden elegir: los libres y el que ya tiene este proyecto.</summary>
+    public List<SquashProyectoDto> SquashDisponibles { get; set; } = new();
+    public bool PuedeManual => User.IsInRole(Roles.Administrador);
+    public bool TieneSquash => Proyecto.SquashProjectId is not null;
 
     private bool EntradaInvalida(params string[] campos) => ModelState.Any(e =>
         campos.Any(c => e.Key.Equals(c, StringComparison.OrdinalIgnoreCase) || e.Key.StartsWith(c + "[", StringComparison.OrdinalIgnoreCase))
@@ -71,6 +81,29 @@ public class EditModel : PageModel
             ModelState.AddModelError($"{nameof(Proyecto)}.{nameof(Proyecto.FechaFin)}", "La fecha de fin debe ser igual o posterior a la fecha de inicio.");
         }
 
+        var listaSquash = await _squash.ListarProyectosAsync();
+        var errorSquash = await SquashSincronizacion.ValidarVinculoAsync(_context, Proyecto.SquashProjectId, Proyecto.Id, listaSquash.Ok ? listaSquash.Datos : null);
+        if (errorSquash is not null) ModelState.AddModelError($"{nameof(Proyecto)}.{nameof(Proyecto.SquashProjectId)}", errorSquash);
+
+        var almacenado = await _context.Proyectos.AsNoTracking().Where(p => p.Id == Proyecto.Id)
+            .Select(p => new { p.SquashProjectId, p.Nombre }).FirstOrDefaultAsync();
+        var nota = string.Empty;
+        if (Proyecto.SquashProjectId is null && almacenado?.SquashProjectId is not null && !PuedeManual)
+            ModelState.AddModelError($"{nameof(Proyecto)}.{nameof(Proyecto.SquashProjectId)}", "Solo un administrador puede desvincular un proyecto de Squash TM.");
+        if (Proyecto.SquashProjectId is int vinculado)
+        {
+            // El nombre es el de Squash TM; si Squash no responde se conserva el guardado.
+            var nombreSquash = listaSquash.Datos?.FirstOrDefault(p => p.Id == vinculado)?.Nombre ?? almacenado?.Nombre;
+            if (!string.IsNullOrWhiteSpace(nombreSquash))
+            {
+                nombreSquash = nombreSquash.Length <= 200 ? nombreSquash : nombreSquash[..200];
+                if (almacenado is not null && almacenado.Nombre != nombreSquash)
+                    nota = $" Nombre alineado con Squash TM: «{almacenado.Nombre}» → «{nombreSquash}».";
+                Proyecto.Nombre = nombreSquash;
+                ModelState.Remove($"{nameof(Proyecto)}.{nameof(Proyecto.Nombre)}");
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             await CargarCatalogosAsync(Proyecto.InstitucionId);
@@ -90,11 +123,20 @@ public class EditModel : PageModel
         proyecto.Descripcion = Proyecto.Descripcion;
         proyecto.InstitucionId = Proyecto.InstitucionId;
         proyecto.Tipo = Proyecto.Tipo;
+        proyecto.BPO = Proyecto.BPO;
         proyecto.PM = Proyecto.PM;
         proyecto.Lider = Proyecto.Lider;
         proyecto.FechaInicio = Proyecto.FechaInicio;
         proyecto.FechaFin = Proyecto.FechaFin;
         proyecto.Activo = Proyecto.Activo;
+        if (proyecto.SquashProjectId != Proyecto.SquashProjectId)
+        {
+            proyecto.SquashProjectId = Proyecto.SquashProjectId;
+            proyecto.SquashSincronizadoEn = null;
+            _context.SquashCampanas.RemoveRange(_context.SquashCampanas.Where(c => c.ProyectoId == proyecto.Id));
+            CierreProyecto.Auditar(_context, proyecto, null, "Squash TM", Usuario, "Vínculo",
+                Proyecto.SquashProjectId is null ? "Proyecto desvinculado de Squash TM" : $"Vinculado al proyecto {Proyecto.SquashProjectId} de Squash TM");
+        }
 
         proyecto.Sistemas.Clear();
         foreach (var sistemaId in SistemasSeleccionados)
@@ -102,13 +144,24 @@ public class EditModel : PageModel
             proyecto.Sistemas.Add(new ProyectoSistema { ProyectoId = proyecto.Id, SistemaId = sistemaId });
         }
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (Proyecto.SquashProjectId is not null)
+        {
+            // Otro usuario vinculó ese proyecto de Squash un instante antes (índice único).
+            ModelState.AddModelError($"{nameof(Proyecto)}.{nameof(Proyecto.SquashProjectId)}", "Ese proyecto de Squash TM acaba de ser vinculado a otro proyecto del portafolio.");
+            _context.ChangeTracker.Clear();
+            await CargarCatalogosAsync(Proyecto.InstitucionId);
+            return Page();
+        }
         var fuera = await _context.Actividades.CountAsync(a => a.ProyectoId == proyecto.Id && a.Estado != EstadoActividad.Cancelada
             && (a.FechaInicio < proyecto.FechaInicio || a.FechaFin > proyecto.FechaFin));
         // Recalcula el avance (si hay actividades) y alinea el estado con el avance; Cancelado no se toca.
         var aviso = await CierreProyecto.RecalcularAvanceAsync(_context, proyecto, Usuario);
 
-        TempData["Mensaje"] = "Proyecto actualizado correctamente." + aviso
+        TempData["Mensaje"] = "Proyecto actualizado correctamente." + nota + aviso
             + (fuera > 0 ? $" Atención: {fuera} actividad(es) quedan fuera del nuevo periodo; ajusta sus fechas." : "");
         return RedirectToPage("Index");
     }
@@ -211,6 +264,7 @@ public class EditModel : PageModel
             actividad.RecursoQAId = elegido;
             if (proyectoRec is not null) CierreProyecto.Auditar(_context, proyectoRec, actividad, actividad.Nombre, Usuario, "Responsable", $"{anterior} → {nuevo}");
             await _context.SaveChangesAsync();
+            TempData["Mensaje"] = $"Responsable de «{actividad.Nombre}» guardado.";
         }
         return RedirectToPage(null, null, new { id }, "actividades");
     }
@@ -236,7 +290,7 @@ public class EditModel : PageModel
             if (proyecto is not null)
             {
                 var aviso = await CierreProyecto.RecalcularAvanceAsync(_context, proyecto, Usuario);
-                if (aviso.Length > 0) TempData["Mensaje"] = aviso.Trim();
+                TempData["Mensaje"] = $"Avance de «{actividad.Nombre}» guardado ({avance:0.##} %)." + aviso;
             }
         }
         return RedirectToPage(null, null, new { id }, "actividades");
@@ -255,12 +309,114 @@ public class EditModel : PageModel
             var proyecto = await _context.Proyectos.FindAsync(id);
             if (proyecto is not null && Bloqueado(proyecto)) return RedirectToPage(null, null, new { id }, "actividades");
             if (proyecto is not null) CierreProyecto.Auditar(_context, proyecto, actividad, actividad.Nombre, Usuario, "Eliminada", $"Avance {actividad.Avance:0.##} %, {actividad.Estado.Texto()}");
+            _context.AcuerdoActividades.RemoveRange(_context.AcuerdoActividades.Where(x => x.ActividadId == actividad.Id));
             _context.Actividades.Remove(actividad);
             await _context.SaveChangesAsync();
             var aviso = proyecto is null ? string.Empty : await CierreProyecto.RecalcularAvanceAsync(_context, proyecto, Usuario);
             TempData["Mensaje"] = "Actividad eliminada." + aviso;
         }
         return RedirectToPage(null, null, new { id }, "actividades");
+    }
+
+    public async Task<IActionResult> OnPostAgregarAcuerdoAsync(int id, string? acuTitulo, string? acuResponsable, string? acuResponsableOtro,
+        DateTime? acuFechaAcuerdo, DateTime? acuFechaLimite, EstadoAcuerdo? acuEstado, List<int>? acuActividades)
+    {
+        var proyecto = await _context.Proyectos.FindAsync(id);
+        if (proyecto is null) return NotFound();
+        var acuerdo = new Acuerdo { ProyectoId = id };
+        var error = await AplicarAcuerdoAsync(acuerdo, acuTitulo, acuResponsable, acuResponsableOtro, acuFechaAcuerdo, acuFechaLimite, acuEstado, acuActividades);
+        if (error is not null) { TempData["Error"] = error; return RedirectToPage(null, null, new { id }, "acuerdos"); }
+        acuerdo.Numero = (await _context.Acuerdos.Where(x => x.ProyectoId == id).MaxAsync(x => (int?)x.Numero) ?? 0) + 1;
+        _context.Acuerdos.Add(acuerdo);
+        await _context.SaveChangesAsync();
+        TempData["Mensaje"] = $"Acuerdo {acuerdo.Codigo} registrado.";
+        return RedirectToPage(null, null, new { id }, "acuerdos");
+    }
+
+    public async Task<IActionResult> OnPostEditarAcuerdoAsync(int id, int acuerdoId, string? acuTitulo, string? acuResponsable, string? acuResponsableOtro,
+        DateTime? acuFechaAcuerdo, DateTime? acuFechaLimite, EstadoAcuerdo? acuEstado, List<int>? acuActividades)
+    {
+        var acuerdo = await _context.Acuerdos.Include(x => x.Actividades).FirstOrDefaultAsync(x => x.Id == acuerdoId && x.ProyectoId == id);
+        if (acuerdo is null) return NotFound();
+        var error = await AplicarAcuerdoAsync(acuerdo, acuTitulo, acuResponsable, acuResponsableOtro, acuFechaAcuerdo, acuFechaLimite, acuEstado, acuActividades);
+        if (error is not null) { TempData["Error"] = $"{acuerdo.Codigo}: {error}"; return RedirectToPage(null, null, new { id }, "acuerdos"); }
+        await _context.SaveChangesAsync();
+        TempData["Mensaje"] = $"Acuerdo {acuerdo.Codigo} actualizado.";
+        return RedirectToPage(null, null, new { id }, "acuerdos");
+    }
+
+    public async Task<IActionResult> OnPostEstadoAcuerdoAsync(int id, int acuerdoId, EstadoAcuerdo estado)
+    {
+        var acuerdo = await _context.Acuerdos.FirstOrDefaultAsync(x => x.Id == acuerdoId && x.ProyectoId == id);
+        if (acuerdo is null) return NotFound();
+        if (EntradaInvalida("estado") || !Enum.IsDefined(estado)) TempData["Error"] = "El estado no es válido.";
+        else { acuerdo.Estado = estado; await _context.SaveChangesAsync(); }
+        return RedirectToPage(null, null, new { id }, "acuerdos");
+    }
+
+    public async Task<IActionResult> OnPostEliminarAcuerdoAsync(int id, int acuerdoId)
+    {
+        var acuerdo = await _context.Acuerdos.FirstOrDefaultAsync(x => x.Id == acuerdoId && x.ProyectoId == id);
+        if (acuerdo is not null)
+        {
+            _context.Acuerdos.Remove(acuerdo); // los vínculos con actividades caen en cascada; las actividades no se tocan
+            await _context.SaveChangesAsync();
+            TempData["Mensaje"] = $"Acuerdo {acuerdo.Codigo} eliminado.";
+        }
+        return RedirectToPage(null, null, new { id }, "acuerdos");
+    }
+
+    /// <summary>
+    /// Valida y aplica los datos del formulario. El responsable QA debe estar asignado al proyecto (o ser el que ya tenía el acuerdo);
+    /// "otro" admite una persona que no es de QA en texto libre. Las actividades vinculadas deben ser del mismo proyecto.
+    /// </summary>
+    private async Task<string?> AplicarAcuerdoAsync(Acuerdo acuerdo, string? titulo, string? responsable, string? responsableOtro,
+        DateTime? fechaAcuerdo, DateTime? fechaLimite, EstadoAcuerdo? estado, List<int>? actividades)
+    {
+        titulo = titulo?.Trim();
+        responsableOtro = responsableOtro?.Trim();
+        if (string.IsNullOrWhiteSpace(titulo) || titulo.Length > 200) return "El título es obligatorio (máximo 200 caracteres).";
+        if (EntradaInvalida("acuFechaAcuerdo", "acuFechaLimite") || fechaAcuerdo is null || fechaLimite is null) return "Las fechas no son válidas.";
+        if (fechaLimite.Value.Date < fechaAcuerdo.Value.Date) return "La fecha límite debe ser igual o posterior a la fecha del acuerdo.";
+        if (EntradaInvalida("acuEstado") || (estado is not null && !Enum.IsDefined(estado.Value))) return "El estado no es válido.";
+
+        int? recursoId = null;
+        string? nombreOtro = null;
+        if (responsable == "otro")
+        {
+            if (string.IsNullOrWhiteSpace(responsableOtro) || responsableOtro.Length > 150) return "Indica el nombre del responsable (máximo 150 caracteres).";
+            nombreOtro = responsableOtro;
+        }
+        else if (int.TryParse(responsable, out var rid))
+        {
+            var asignados = await _context.Asignaciones.Where(a => a.ProyectoId == acuerdo.ProyectoId).Select(a => a.RecursoQAId).Distinct().ToListAsync();
+            if (!asignados.Contains(rid) && acuerdo.RecursoQAId != rid) return "El recurso QA seleccionado no está asignado a este proyecto.";
+            recursoId = rid;
+        }
+        else return "Indica el responsable del acuerdo.";
+
+        var ids = (actividades ?? new()).Distinct().ToList();
+        var validas = await _context.Actividades.Where(a => a.ProyectoId == acuerdo.ProyectoId && ids.Contains(a.Id)).Select(a => a.Id).ToListAsync();
+        if (validas.Count != ids.Count) return "Alguna actividad vinculada no pertenece a este proyecto.";
+
+        acuerdo.Titulo = titulo;
+        acuerdo.RecursoQAId = recursoId;
+        acuerdo.ResponsableNombre = nombreOtro;
+        acuerdo.FechaAcuerdo = fechaAcuerdo.Value.Date;
+        acuerdo.FechaLimite = fechaLimite.Value.Date;
+        acuerdo.Estado = estado ?? EstadoAcuerdo.Pendiente;
+        acuerdo.Actividades.RemoveAll(x => !ids.Contains(x.ActividadId));
+        foreach (var aid in ids.Where(i => !acuerdo.Actividades.Any(x => x.ActividadId == i)))
+            acuerdo.Actividades.Add(new AcuerdoActividad { ActividadId = aid });
+        return null;
+    }
+
+    public async Task<IActionResult> OnPostSincronizarSquashAsync(int id)
+    {
+        var proyecto = await _context.Proyectos.FindAsync(id);
+        if (proyecto is null) return NotFound();
+        TempData["Mensaje"] = await SquashSincronizacion.SincronizarAsync(_context, _squash, proyecto, Usuario);
+        return RedirectToPage(null, null, new { id }, "squash");
     }
 
     public async Task<IActionResult> OnPostCancelarProyectoAsync(int id)
@@ -379,6 +535,13 @@ public class EditModel : PageModel
         }
         Actividades = await _context.Actividades.Include(a => a.RecursoQA).Where(a => a.ProyectoId == Proyecto.Id)
             .OrderBy(a => a.Orden).ThenBy(a => a.FechaInicio).ThenBy(a => a.Id).ToListAsync();
+        var lecturaSquash = await _squash.ListarProyectosAsync();
+        SquashProyectos = lecturaSquash.Datos ?? new();
+        SquashError = lecturaSquash.Ok ? null : lecturaSquash.Error;
+        var vinculadosOtros = await _context.Proyectos.Where(p => p.SquashProjectId != null && p.Id != Proyecto.Id).Select(p => p.SquashProjectId!.Value).ToListAsync();
+        SquashDisponibles = SquashProyectos.Where(p => !vinculadosOtros.Contains(p.Id)).ToList();
+        Acuerdos = await _context.Acuerdos.AsNoTracking().Include(x => x.RecursoQA).Include(x => x.Actividades)
+            .Where(x => x.ProyectoId == Proyecto.Id).OrderBy(x => x.Numero).ToListAsync();
         Auditoria = await _context.ActividadAuditorias.AsNoTracking().Where(a => a.ProyectoId == Proyecto.Id)
             .OrderByDescending(a => a.Fecha).Take(30).ToListAsync();
         Instituciones = await _context.Instituciones

@@ -12,7 +12,15 @@
                 <li>
                     <strong>@c.Recurso</strong>: del @c.Inicio.ToString("dd/MM/yyyy") al @c.Fin.ToString("dd/MM/yyyy")
                     pide @c.Solicitado.ToString("0.##")%, pero su carga existente llega a @c.ExistenteMaximo.ToString("0.##")% de @c.Capacidad.ToString("0.##")% de capacidad
-                    (máximo asignable en ese tramo: @c.LibreMinimo.ToString("0.##")%)@(c.HayAusencia ? " · incluye días de ausencia" : "").
+                    (máximo asignable en ese tramo: @c.LibreMinimo.ToString("0.##")%).
+                    @if (c.Ausencias.Any())
+                    {
+                        <span class="d-block small"><strong>Ausencia registrada:</strong> @string.Join("; ", c.Ausencias) (no disponible ese día).</span>
+                    }
+                    @if (c.InicioSugerido is not null)
+                    {
+                        <span class="d-block small">Primer día en que cabe esta asignación después del tramo: <strong>@c.InicioSugerido.Value.ToString("dd/MM/yyyy")</strong>.</span>
+                    }
                     @if (c.Proyectos.Any())
                     {
                         <span class="d-block small text-muted">Proyectos que ocupan su tiempo: @string.Join(", ", c.Proyectos)</span>

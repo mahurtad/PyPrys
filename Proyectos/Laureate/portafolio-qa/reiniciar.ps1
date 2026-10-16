@@ -1,4 +1,4 @@
-# Detiene la app en el puerto 5011, recompila y la vuelve a lanzar en esta misma ventana.
+﻿# Detiene la app en el puerto 5011, recompila y la vuelve a lanzar en esta misma ventana.
 # Uso: .\reiniciar.ps1
 Set-Location $PSScriptRoot
 Get-NetTCPConnection -LocalPort 5011 -State Listen -ErrorAction SilentlyContinue |

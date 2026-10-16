@@ -1,4 +1,4 @@
-# Despliegue en IIS (Windows Server)
+﻿﻿# Despliegue en IIS (Windows Server)
 
 Guía para publicar Portafolio QA como versión interna. Nada de esto se ejecuta
 automáticamente: son pasos para quien administre el servidor.
@@ -21,14 +21,18 @@ Copiar el contenido de `publish\` a la carpeta del sitio (p. ej. `C:\inetpub\por
 
 ## 3. Base de datos
 
-Generar un script SQL revisable y aplicarlo con el usuario DBA (el sitio **no** migra solo):
+La instalación **no toca SQL Server**. La conexión se configura después, desde el asistente de la aplicación
+(`https://<servidor>/Setup`, con el código de `C:\ProgramData\PortafolioQA\codigo-configuracion.txt`). El asistente prueba
+conexión, permisos y esquema, genera el script de acceso para el DBA y activa la aplicación (ver `Instalador\LEEME.txt`).
+
+Si se prefiere preparar la base a mano, el script de esquema se obtiene del asistente o con:
 
 ```powershell
 dotnet ef migrations script --idempotent --configuration Release -o portafolio-qa.sql
 ```
 
-Dar al usuario con que corre la app permisos `db_datareader` y `db_datawriter` sobre la base
-(no `db_owner`). No hace falta DDL en producción.
+La cuenta de la app necesita `db_datareader` y `db_datawriter` (no `db_owner`). Para aplicar migraciones desde el asistente,
+además `db_ddladmin`; si no se otorga, el DBA ejecuta el script de esquema.
 
 ## 4. Sitio y application pool
 
@@ -48,7 +52,7 @@ fuera del repositorio). Doble guion bajo = separador de nivel:
 | Variable | Valor |
 |---|---|
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
-| `ConnectionStrings__PortafolioQAContext` | cadena de conexión real |
+| `ConnectionStrings__PortafolioQAContext` | **Opcional/heredada.** Las instalaciones nuevas no la definen: la conexión se guarda cifrada desde `/Setup`. Si existe y no hay `conexion.dat`, se usa |
 | `DataProtection__RutaClaves` | carpeta persistente, p. ej. `D:\portafolio-qa-keys` |
 | `Seguridad__AdminInicial__Correo` | correo del primer administrador (solo primer arranque) |
 | `Seguridad__AdminInicial__Contrasena` | contraseña inicial (solo primer arranque) |
@@ -79,4 +83,4 @@ fuera del repositorio). Doble guion bajo = separador de nivel:
   endurecer el sitio.
 - No hay recuperación de contraseña por correo: un administrador restablece la clave desde Usuarios.
 - No hay registro de auditoría de cambios de datos (quién modificó qué).
-- Squash TM y Bugzilla siguen sin conexión real (etapas 4 y 5).
+- Bugzilla sigue sin conexión real (etapa 5).

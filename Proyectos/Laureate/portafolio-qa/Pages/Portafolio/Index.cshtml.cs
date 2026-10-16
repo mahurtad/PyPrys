@@ -3,16 +3,25 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using PortafolioQA.Data;
 using PortafolioQA.Models;
+using PortafolioQA.Services;
+using PortafolioQA.Services.Integrations;
 
 namespace PortafolioQA.Pages.Portafolio;
 
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class IndexModel : PageModel
 {
     private readonly PortafolioQAContext _context;
+    private readonly ISquashApi _squash;
+    private readonly IConfiguration _config;
+    private readonly ILogger<IndexModel> _logger;
 
-    public IndexModel(PortafolioQAContext context)
+    public IndexModel(PortafolioQAContext context, ISquashApi squash, IConfiguration config, ILogger<IndexModel> logger)
     {
         _context = context;
+        _squash = squash;
+        _config = config;
+        _logger = logger;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -44,8 +53,45 @@ public class IndexModel : PageModel
     public List<string> Pms { get; set; } = new();
     public List<string> Lideres { get; set; } = new();
 
-    public async Task OnGetAsync()
+    /// <summary>
+    /// Al entrar al portafolio se refresca desde Squash TM el avance de los proyectos vinculados cuya última sincronización
+    /// es más antigua que Squash:RefrescoMinutos (por defecto 0.5 = 30 s; 0 = siempre). Con ?forzar=1 (botón Actualizar) se ignora el umbral. Si Squash falla o tarda, se muestra lo guardado.
+    /// </summary>
+    private async Task RefrescarSquashAsync(bool forzar)
     {
+        var minutos = _config.GetValue("Squash:RefrescoMinutos", 0.5);
+        var limite = forzar ? DateTime.Now.AddDays(1) : DateTime.Now.AddMinutes(-minutos);
+        var pendientes = await _context.Proyectos
+            .Where(p => p.SquashProjectId != null && p.Estado != EstadoProyecto.Cerrado && p.Estado != EstadoProyecto.Cancelado
+                && (p.SquashSincronizadoEn == null || p.SquashSincronizadoEn < limite))
+            .ToListAsync();
+        if (pendientes.Count == 0) return;
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+        var usuario = User.Identity?.Name ?? CierreProyecto.UsuarioSistema;
+        foreach (var proyecto in pendientes)
+        {
+            try { await SquashSincronizacion.SincronizarAsync(_context, _squash, proyecto, usuario, cts.Token); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudo refrescar Squash TM para el proyecto {Id}", proyecto.Id);
+                if (cts.IsCancellationRequested) break;
+            }
+        }
+    }
+
+    public async Task<IActionResult> OnGetAsync(bool forzar = false)
+    {
+        await RefrescarSquashAsync(forzar);
+        if (forzar)
+        {
+            // Redirige sin "forzar" para que recargar con F5 no vuelva a forzar y se conserven los filtros.
+            var filtros = Request.Query.Where(q => !q.Key.Equals("forzar", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(q => q.Key, q => (string?)q.Value.ToString());
+            return RedirectToPage(null, filtros);
+        }
+
         Instituciones = await _context.Instituciones.Where(i => i.Activo).OrderBy(i => i.Nombre).ToListAsync();
         RecursosQA = await _context.RecursosQA.Where(r => r.Activo).OrderBy(r => r.Nombres).ToListAsync();
         Sistemas = await _context.Sistemas.Where(s => s.Activo).OrderBy(s => s.Nombre).ToListAsync();
@@ -94,5 +140,6 @@ public class IndexModel : PageModel
         }
 
         Proyectos = await query.OrderBy(p => p.Nombre).ToListAsync();
+        return Page();
     }
 }

@@ -95,7 +95,11 @@
     </div>
 </form>
 
-<p class="text-muted">@Model.Proyectos.Count iniciativa(s) encontradas.</p>
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <p class="text-muted mb-0">@Model.Proyectos.Count iniciativa(s) encontradas.</p>
+    <a href="@Url.Page("/Portafolio/Index", null, new { forzar = true, Model.InstitucionId, Model.Tipo, Model.Estado, Model.RecursoQAId, Model.Pm, Model.Lider, Model.SistemaId })"
+       class="btn btn-sm btn-link text-muted text-decoration-none" title="Actualizar el avance desde Squash TM ahora">&#8635; Actualizar</a>
+</div>
 
 <div id="vista-tarjetas" class="row g-3 row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-5">
     @foreach (var p in Model.Proyectos)
@@ -167,7 +171,16 @@
                     <td>@p.FechaInicio.ToString("dd/MM/yyyy")</td>
                     <td>@p.FechaFin.ToString("dd/MM/yyyy")</td>
                     <td>@p.Avance%</td>
-                    <td>@(p.Asignaciones.Any() ? string.Join(", ", p.Asignaciones.Select(a => a.RecursoQA?.NombreCompleto).Distinct()) : "—")</td>
+                    <td>
+                        @{ var recursos = p.Asignaciones.Select(a => a.RecursoQA?.NombreCompleto).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList(); }
+                        @if (recursos.Any())
+                        {
+                            <div class="chips-recursos">
+                                @foreach (var r in recursos) { <span class="chip-recurso">@r</span> }
+                            </div>
+                        }
+                        else { <span>—</span> }
+                    </td>
                     <td><a asp-page="/Portafolio/Detalle" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary">Detalle</a></td>
                 </tr>
             }

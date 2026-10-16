@@ -26,6 +26,11 @@ public class RecursoQA
 
     public bool Activo { get; set; } = true;
 
+    /// <summary>Login de esta persona en Squash TM. Vincula los casos que Squash le asigna con este recurso.</summary>
+    [Display(Name = "Usuario en Squash TM")]
+    [StringLength(100)]
+    public string? SquashLogin { get; set; }
+
     /// <summary>Usuario registrado al que corresponde este recurso. Para asignar a un recurso debe estar vinculado.</summary>
     public string? UsuarioId { get; set; }
     public UsuarioApp? Usuario { get; set; }

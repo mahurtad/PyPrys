@@ -255,16 +255,34 @@ public static class CierreProyecto
     {
         if (proyecto.AvancePendienteConfirmar || proyecto.Estado == EstadoProyecto.Cancelado) return string.Empty;
 
-        var actividades = await context.Actividades.Where(a => a.ProyectoId == proyecto.Id)
-            .Select(a => new { a.Estado, a.Avance, a.Peso }).ToListAsync();
-        var vigentes = actividades.Where(a => a.Estado != EstadoActividad.Cancelada).ToList();
-        var pesoTotal = vigentes.Sum(a => a.Peso);
-        var promedio = pesoTotal == 0 ? 0 : vigentes.Sum(a => a.Avance * a.Peso) / pesoTotal;
+        decimal promedio;
+        var actividadEnCurso = false;
+        if (proyecto.SquashProjectId is not null)
+        {
+            // Proyecto vinculado: el avance es el promedio de sus casos en Squash TM (todos pesan igual).
+            // Sin datos sincronizados no se toca el avance.
+            // Cada caso de prueba cuenta una vez (con su resultado más reciente), aunque esté en varias iteraciones.
+            var casos = SquashCasosUnicos.Depurar(await context.SquashCasos
+                .Where(k => k.Vigente && k.Porcentaje != null && k.SquashIteracion!.Vigente
+                    && k.SquashIteracion.SquashCampana!.Vigente && k.SquashIteracion.SquashCampana.ProyectoId == proyecto.Id)
+                .ToListAsync());
+            if (casos.Count == 0) return string.Empty;
+            promedio = casos.Average(k => k.Porcentaje!.Value);
+        }
+        else
+        {
+            var actividades = await context.Actividades.Where(a => a.ProyectoId == proyecto.Id)
+                .Select(a => new { a.Estado, a.Avance, a.Peso }).ToListAsync();
+            var vigentes = actividades.Where(a => a.Estado != EstadoActividad.Cancelada).ToList();
+            var pesoTotal = vigentes.Sum(a => a.Peso);
+            promedio = pesoTotal == 0 ? 0 : vigentes.Sum(a => a.Avance * a.Peso) / pesoTotal;
+            actividadEnCurso = vigentes.Any(a => a.Estado == EstadoActividad.EnCurso);
+        }
         // Evita cerrar por un redondeo a 100 cuando todavía hay avance pendiente.
         proyecto.Avance = promedio < 100 ? Math.Min(99.99m, Math.Round(promedio, 2)) : 100;
         var aviso = string.Empty;
         var objetivo = EstadoPorAvance(proyecto.Avance);
-        if (objetivo == EstadoProyecto.Planificado && vigentes.Any(a => a.Estado == EstadoActividad.EnCurso))
+        if (objetivo == EstadoProyecto.Planificado && actividadEnCurso)
             objetivo = EstadoProyecto.EnCertificacion;
         if (objetivo != proyecto.Estado)
         {

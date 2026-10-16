@@ -46,6 +46,23 @@ public static class EnumDisplay
         _ => "bg-dark"
     };
 
+    public static string Texto(this EstadoAcuerdo estado) => estado switch
+    {
+        EstadoAcuerdo.Pendiente => "Pendiente",
+        EstadoAcuerdo.EnCurso => "En curso",
+        EstadoAcuerdo.Cumplido => "Cumplido",
+        EstadoAcuerdo.Cancelado => "Cancelado",
+        _ => estado.ToString()
+    };
+
+    public static string BadgeClase(this EstadoAcuerdo estado) => estado switch
+    {
+        EstadoAcuerdo.Pendiente => "bg-secondary",
+        EstadoAcuerdo.EnCurso => "bg-primary",
+        EstadoAcuerdo.Cumplido => "bg-success",
+        _ => "bg-dark"
+    };
+
     public static string Texto(this EquipoQA equipo) => equipo switch
     {
         EquipoQA.Change => "Change",
