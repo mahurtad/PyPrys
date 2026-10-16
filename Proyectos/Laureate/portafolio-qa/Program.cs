@@ -114,6 +114,22 @@ builder.Services.AddHttpClient<BugzillaClient>((sp, http) =>
     http.DefaultRequestHeaders.Add("X-BUGZILLA-API-KEY", o.ApiKey);
     http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 });
+// Cuenta de servicio con editcomponents (Bugzilla:AdminApiKey): crea el producto y el componente de cada iniciativa por la API REST.
+builder.Services.AddHttpClient<BugzillaProductosClient>((sp, http) =>
+{
+    var o = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value;
+    if (!o.ProductosConfigurado) return;
+    http.BaseAddress = new Uri(o.BaseUrl!.TrimEnd('/') + "/rest/");
+    http.Timeout = TimeSpan.FromSeconds(20);
+    http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+})
+.AddHttpMessageHandler(sp => new BugzillaApiKeyHandler(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value.AdminApiKey ?? string.Empty));
+builder.Logging.AddFilter("System.Net.Http.HttpClient.BugzillaProductosClient", LogLevel.Warning);
+builder.Services.AddScoped<IBugzillaProductos>(sp =>
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value.ProductosConfigurado
+        ? sp.GetRequiredService<BugzillaProductosClient>()
+        : new BugzillaProductosNoConfigurado());
+builder.Services.AddScoped<BugzillaProvision>();
 builder.Services.AddScoped<IIntegracionDefectos>(sp =>
     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value.Configurado
         ? sp.GetRequiredService<BugzillaClient>()

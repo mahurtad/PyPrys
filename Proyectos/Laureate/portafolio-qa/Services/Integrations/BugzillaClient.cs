@@ -8,6 +8,16 @@ public class BugzillaOptions
     public string? ApiKey { get; set; }
     public bool Configurado => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var uri)
         && uri.Scheme is "http" or "https" && !string.IsNullOrWhiteSpace(ApiKey);
+
+    /// <summary>Clave de la cuenta de servicio con el grupo editcomponents (user-secrets o variable Bugzilla__AdminApiKey).
+    /// Es distinta de ApiKey (solo consulta defectos): crear productos requiere un permiso mayor.</summary>
+    public string? AdminApiKey { get; set; }
+
+    /// <summary>Login de esa cuenta; es el responsable por defecto del componente "General" (no se asigna a personas).</summary>
+    public string CuentaServicio { get; set; } = "portafolio-productos-api@portafolio.local";
+
+    public bool ProductosConfigurado => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var uri)
+        && uri.Scheme is "http" or "https" && !string.IsNullOrWhiteSpace(AdminApiKey);
 }
 
 /// <summary>Consulta de defectos por nombre exacto de producto de Bugzilla.</summary>

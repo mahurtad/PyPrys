@@ -25,6 +25,26 @@
     </div>
     <div class="text-end">
         <span class="badge @Model.Proyecto.Estado.BadgeClase() fs-6">@Model.Proyecto.Estado.Texto()</span>
+        <div class="mt-2" id="bugzilla">
+            <partial name="_EtiquetaBugzilla" model="Model.Proyecto" />
+            @if (puedeEditar && Model.Proyecto.SquashProjectId is not null && Model.Proyecto.VinculoBugzilla?.Estado != EstadoBugzilla.Configurado)
+            {
+                <form method="post" asp-page-handler="ReintentarBugzilla" asp-route-id="@Model.Proyecto.Id" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-primary py-0" data-bugzilla-reintentar>Reintentar</button>
+                </form>
+                @if (User.IsInRole(Roles.Administrador) && Model.Proyecto.VinculoBugzilla?.Estado == EstadoBugzilla.Error && Model.Proyecto.VinculoBugzilla.ProductoId is null)
+                {
+                    <form method="post" asp-page-handler="ReintentarBugzilla" asp-route-id="@Model.Proyecto.Id" asp-route-asociarExistente="true" class="d-inline"
+                          onsubmit="return confirm('¿Confirmas que el producto de Bugzilla con este nombre corresponde a esta iniciativa?');">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary py-0">Asociar existente</button>
+                    </form>
+                }
+            }
+            @if (Model.Proyecto.SquashProjectId is not null)
+            {
+                <div class="small text-muted mt-1" style="max-width:26rem">Asociar el proyecto de Squash TM con este producto de Bugzilla es un paso manual: Squash TM 11 no ofrece una API para hacerlo.</div>
+            }
+        </div>
         <div class="mt-2">
             @if (puedeEditar)
             {

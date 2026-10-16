@@ -72,6 +72,9 @@ public class Proyecto
     [BindNever]
     public List<SquashCampana> SquashCampanas { get; set; } = new();
     public List<AsociacionExterna> Integraciones { get; set; } = new();
+    /// <summary>Producto de Bugzilla de esta iniciativa (1 a 1).</summary>
+    [BindNever]
+    public VinculoBugzilla? VinculoBugzilla { get; set; }
     [BindNever]
     public List<CierreProyectoRegistro> Cierres { get; set; } = new();
 }

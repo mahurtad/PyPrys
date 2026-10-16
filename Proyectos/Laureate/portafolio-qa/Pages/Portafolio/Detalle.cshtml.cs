@@ -15,9 +15,11 @@ public class DetalleModel : PageModel
     private readonly IIntegracionCertificacion _integracionCertificacion;
     private readonly ISquashApi _squash;
     private readonly IIntegracionDefectos _defectos;
+    private readonly BugzillaProvision _bugzilla;
 
-    public DetalleModel(PortafolioQAContext context, IIntegracionCertificacion integracionCertificacion, ISquashApi squash, IIntegracionDefectos defectos)
+    public DetalleModel(PortafolioQAContext context, IIntegracionCertificacion integracionCertificacion, ISquashApi squash, IIntegracionDefectos defectos, BugzillaProvision bugzilla)
     {
+        _bugzilla = bugzilla;
         _context = context;
         _integracionCertificacion = integracionCertificacion;
         _squash = squash;
@@ -42,6 +44,7 @@ public class DetalleModel : PageModel
             .Include(p => p.Sistemas).ThenInclude(ps => ps.Sistema)
             .Include(p => p.Asignaciones).ThenInclude(a => a.RecursoQA)
             .Include(p => p.Integraciones)
+            .Include(p => p.VinculoBugzilla)
             .Include(p => p.SquashCampanas).ThenInclude(c => c.Iteraciones).ThenInclude(i => i.Casos).ThenInclude(k => k.RecursoQA)
             .Include(p => p.Acuerdos).ThenInclude(x => x.RecursoQA)
             .Include(p => p.Acuerdos).ThenInclude(x => x.Actividades).ThenInclude(v => v.Actividad)
@@ -84,6 +87,17 @@ public class DetalleModel : PageModel
         if (proyecto is null) return NotFound();
         TempData["Mensaje"] = await SquashSincronizacion.SincronizarAsync(_context, _squash, proyecto, User.Identity?.Name ?? CierreProyecto.UsuarioSistema);
         return RedirectToPage(null, null, new { id }, "squash");
+    }
+
+    /// <summary>Reintenta desde el paso pendiente. "asociarExistente" (solo administrador) confirma un producto preexistente con el mismo nombre.</summary>
+    public async Task<IActionResult> OnPostReintentarBugzillaAsync(int id, bool asociarExistente = false)
+    {
+        if (!User.IsInRole(Roles.Administrador) && !User.IsInRole(Roles.Editor)) return Forbid();
+        if (asociarExistente && !User.IsInRole(Roles.Administrador)) return Forbid();
+        var r = await _bugzilla.PrepararAsync(id, asociarExistente, HttpContext.RequestAborted);
+        if (r.Estado == EstadoBugzilla.Configurado) TempData["Mensaje"] = r.Mensaje;
+        else TempData["Error"] = "Bugzilla: " + r.Mensaje;
+        return RedirectToPage(null, null, new { id }, "bugzilla");
     }
 
     public record ResultadoCertificacionConFuente(AsociacionExterna Fuente, ResultadoCertificacion Resultado);

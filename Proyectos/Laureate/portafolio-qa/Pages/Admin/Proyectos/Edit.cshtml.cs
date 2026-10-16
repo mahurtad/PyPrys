@@ -12,9 +12,11 @@ public class EditModel : PageModel
 {
     private readonly PortafolioQAContext _context;
     private readonly ISquashApi _squash;
+    private readonly BugzillaProvision _bugzilla;
 
-    public EditModel(PortafolioQAContext context, ISquashApi squash)
+    public EditModel(PortafolioQAContext context, ISquashApi squash, BugzillaProvision bugzilla)
     {
+        _bugzilla = bugzilla;
         _context = context;
         _squash = squash;
     }
@@ -161,7 +163,18 @@ public class EditModel : PageModel
         // Recalcula el avance (si hay actividades) y alinea el estado con el avance; Cancelado no se toca.
         var aviso = await CierreProyecto.RecalcularAvanceAsync(_context, proyecto, Usuario);
 
-        TempData["Mensaje"] = "Proyecto actualizado correctamente." + nota + aviso
+        var bugzilla = string.Empty;
+        if (proyecto.SquashProjectId is not null)
+        {
+            try
+            {
+                var r = await _bugzilla.PrepararAsync(proyecto.Id, false, HttpContext.RequestAborted);
+                bugzilla = r.Estado == EstadoBugzilla.Configurado ? " Producto de Bugzilla verificado." : " Bugzilla: " + r.Mensaje;
+            }
+            catch (Exception) { bugzilla = " Bugzilla quedó pendiente; reintenta desde el detalle."; }
+        }
+
+        TempData["Mensaje"] = "Proyecto actualizado correctamente." + nota + aviso + bugzilla
             + (fuera > 0 ? $" Atención: {fuera} actividad(es) quedan fuera del nuevo periodo; ajusta sus fechas." : "");
         return RedirectToPage("Index");
     }

@@ -13,9 +13,11 @@ public class CreateModel : PageModel
     private readonly PortafolioQAContext _context;
     private readonly CapacidadService _capacidad;
     private readonly ISquashApi _squash;
+    private readonly BugzillaProvision _bugzilla;
 
-    public CreateModel(PortafolioQAContext context, CapacidadService capacidad, ISquashApi squash)
+    public CreateModel(PortafolioQAContext context, CapacidadService capacidad, ISquashApi squash, BugzillaProvision bugzilla)
     {
+        _bugzilla = bugzilla;
         _context = context;
         _capacidad = capacidad;
         _squash = squash;
@@ -187,9 +189,23 @@ public class CreateModel : PageModel
             }
         }
 
+        // La iniciativa ya está guardada: si Bugzilla falla se conserva y se reintenta desde el detalle.
+        var bugzilla = await PrepararBugzillaAsync();
+
         TempData["Mensaje"] = "Proyecto registrado correctamente."
-            + (avisos.Count > 0 ? " Atención: " + string.Join("; ", avisos) + "." : "");
+            + (avisos.Count > 0 ? " Atención: " + string.Join("; ", avisos) + "." : "") + bugzilla;
         return RedirectToPage("Index");
+    }
+
+    private async Task<string> PrepararBugzillaAsync()
+    {
+        if (Proyecto.SquashProjectId is null) return string.Empty;
+        try
+        {
+            var r = await _bugzilla.PrepararAsync(Proyecto.Id, false, HttpContext.RequestAborted);
+            return r.Estado == EstadoBugzilla.Configurado ? " Producto de Bugzilla sincronizado." : " Bugzilla quedó " + (r.Estado == EstadoBugzilla.Error ? "con error" : "pendiente") + ": " + r.Mensaje + " Reintenta desde el detalle.";
+        }
+        catch (Exception) { return " Bugzilla quedó pendiente; reintenta desde el detalle."; }
     }
 
     private async Task CargarCatalogosAsync()

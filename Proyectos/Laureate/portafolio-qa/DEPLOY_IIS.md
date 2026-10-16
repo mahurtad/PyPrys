@@ -1,4 +1,4 @@
-﻿﻿# Despliegue en IIS (Windows Server)
+﻿# Despliegue en IIS (Windows Server)
 
 Guía para publicar Portafolio QA como versión interna. Nada de esto se ejecuta
 automáticamente: son pasos para quien administre el servidor.
@@ -33,6 +33,9 @@ dotnet ef migrations script --idempotent --configuration Release -o portafolio-q
 
 La cuenta de la app necesita `db_datareader` y `db_datawriter` (no `db_owner`). Para aplicar migraciones desde el asistente,
 además `db_ddladmin`; si no se otorga, el DBA ejecuta el script de esquema.
+
+> **Integración Bugzilla:** la migración `Etapa17VinculoBugzilla` y la cuenta de servicio con `editcomponents`
+> (`Bugzilla__AdminApiKey`) se describen en [INTEGRACION_BUGZILLA.md](INTEGRACION_BUGZILLA.md).
 
 ## 4. Sitio y application pool
 

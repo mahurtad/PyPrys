@@ -102,6 +102,7 @@ public class IndexModel : PageModel
             .Include(p => p.Institucion)
             .Include(p => p.Sistemas).ThenInclude(ps => ps.Sistema)
             .Include(p => p.Asignaciones).ThenInclude(a => a.RecursoQA)
+            .Include(p => p.VinculoBugzilla)
             .AsQueryable();
 
         if (InstitucionId.HasValue)

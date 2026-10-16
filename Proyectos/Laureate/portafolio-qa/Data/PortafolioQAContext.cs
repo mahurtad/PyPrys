@@ -28,6 +28,7 @@ public class PortafolioQAContext : IdentityDbContext<UsuarioApp>
     public DbSet<ActividadAuditoria> ActividadAuditorias => Set<ActividadAuditoria>();
     public DbSet<Acuerdo> Acuerdos => Set<Acuerdo>();
     public DbSet<AcuerdoActividad> AcuerdoActividades => Set<AcuerdoActividad>();
+    public DbSet<VinculoBugzilla> VinculosBugzilla => Set<VinculoBugzilla>();
     public DbSet<SquashCampana> SquashCampanas => Set<SquashCampana>();
     public DbSet<SquashIteracion> SquashIteraciones => Set<SquashIteracion>();
     public DbSet<SquashCaso> SquashCasos => Set<SquashCaso>();
@@ -194,6 +195,15 @@ public class PortafolioQAContext : IdentityDbContext<UsuarioApp>
         // acuerdo; al eliminar una actividad se quitan sus vínculos explícitamente (Edit.cshtml.cs).
         modelBuilder.Entity<Proyecto>().HasIndex(p => p.SquashProjectId).IsUnique().HasFilter("[SquashProjectId] IS NOT NULL");
         modelBuilder.Entity<RecursoQA>().HasIndex(r => r.SquashLogin).IsUnique().HasFilter("[SquashLogin] IS NOT NULL");
+
+        modelBuilder.Entity<VinculoBugzilla>(v =>
+        {
+            v.HasOne(x => x.Proyecto).WithOne(p => p.VinculoBugzilla).HasForeignKey<VinculoBugzilla>(x => x.ProyectoId).OnDelete(DeleteBehavior.Cascade);
+            v.HasIndex(x => x.ProyectoId).IsUnique();
+            // Un proyecto de Squash y un producto de Bugzilla solo pueden pertenecer a una iniciativa, siempre dentro de su ambiente.
+            v.HasIndex(x => new { x.SquashAmbiente, x.SquashProjectId }).IsUnique();
+            v.HasIndex(x => new { x.BugzillaAmbiente, x.ProductoId }).IsUnique().HasFilter("[ProductoId] IS NOT NULL");
+        });
 
         modelBuilder.Entity<SquashCampana>()
             .HasOne(c => c.Proyecto).WithMany(p => p.SquashCampanas)

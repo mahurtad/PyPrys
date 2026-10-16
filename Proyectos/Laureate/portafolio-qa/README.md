@@ -16,6 +16,7 @@ La instalación, el inicio y las asociaciones se describen en [infra/local/READM
 Squash TM dispone de cliente REST y sincronización de campañas, iteraciones y casos.
 Bugzilla dispone de cliente REST y consulta de defectos por producto en el detalle de la iniciativa.
 Las credenciales se almacenan en `dotnet user-secrets`; SQL Server sigue siendo la base del portafolio.
+La creación automática del producto de Bugzilla por iniciativa (permisos, pasos del DBA y limitaciones) está en [INTEGRACION_BUGZILLA.md](INTEGRACION_BUGZILLA.md).
 Las secciones de etapas que siguen describen el alcance histórico del prototipo.
 
 ## Tecnología

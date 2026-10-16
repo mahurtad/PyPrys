@@ -12,6 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Tests/**/*.cs" />
+    <Content Remove="Tests/**" />
+    <None Remove="Tests/**" />
     <Compile Remove="Verification/**/*.cs" />
     <Content Remove="Verification/**" />
     <None Remove="Verification/**" />

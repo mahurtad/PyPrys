@@ -112,6 +112,7 @@
                         <span class="badge @p.Estado.BadgeClase()">@p.Estado.Texto()</span>
                     </div>
                     <div class="text-muted">@p.Institucion?.Nombre · @p.Tipo.Texto()</div>
+                    <div class="mb-1"><partial name="_EtiquetaBugzilla" model="p" /></div>
                     <ul class="list-unstyled mb-1">
                         <li><strong>PM:</strong> @(p.PM ?? "—") · <strong>Líder:</strong> @(p.Lider ?? "—")</li>
                         <li><strong>Periodo:</strong> @p.FechaInicio.ToString("dd/MM/yyyy") - @p.FechaFin.ToString("dd/MM/yyyy")</li>
@@ -165,7 +166,7 @@
                     <td>@p.Nombre</td>
                     <td>@p.Institucion?.Nombre</td>
                     <td>@p.Tipo.Texto()</td>
-                    <td><span class="badge @p.Estado.BadgeClase()">@p.Estado.Texto()</span></td>
+                    <td><span class="badge @p.Estado.BadgeClase()">@p.Estado.Texto()</span> <partial name="_EtiquetaBugzilla" model="p" /></td>
                     <td>@(p.PM ?? "—")</td>
                     <td>@(p.Lider ?? "—")</td>
                     <td>@p.FechaInicio.ToString("dd/MM/yyyy")</td>
