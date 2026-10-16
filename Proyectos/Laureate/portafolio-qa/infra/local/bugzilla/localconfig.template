@@ -1,0 +1,14 @@
+$create_htaccess = 1;
+$webservergroup = 'www-data';
+$db_driver = 'mariadb';
+$db_host = '__MYSQL_HOST__';
+$db_name = '__MYSQL_DATABASE__';
+$db_user = '__MYSQL_USER__';
+$db_pass = '__MYSQL_PASSWORD__';
+$db_port = 0;
+$db_sock = '';
+$index_html = 0;
+$interdiffbin = '';
+$diffpath = '/usr/bin';
+$site_wide_secret = '__SITE_WIDE_SECRET__';
+1;

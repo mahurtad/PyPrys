@@ -1,0 +1,87 @@
+name: portafolio-qa-local
+services:
+  squash-db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: squashtm
+      POSTGRES_USER: squashtm
+      POSTGRES_PASSWORD: ${SQUASH_DB_PASSWORD}
+    volumes:
+      - squash-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U squashtm"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  squash:
+    image: squashtest/squash:11.0.9
+    restart: unless-stopped
+    depends_on:
+      squash-db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: postgresql
+      SPRING_DATASOURCE_URL: jdbc:postgresql://squash-db:5432/squashtm
+      SPRING_DATASOURCE_USERNAME: squashtm
+      SPRING_DATASOURCE_PASSWORD: ${SQUASH_DB_PASSWORD}
+      TZ: America/Lima
+      SQUASH_REST_API_DISALLOW_BASIC_AUTHENTICATION: 'false'
+      SQUASH_REST_API_JWT_SECRET: ${SQUASH_JWT_SECRET}
+    ports:
+      - "127.0.0.1:8090:8080"
+    volumes:
+      - squash-logs:/opt/squash-tm/logs
+      - ./start-plugins.cfg:/opt/squash-tm/conf/start-plugins.cfg:ro
+  bugzilla-db:
+    image: mariadb:11.8
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${BUGZILLA_DB_PASSWORD}
+      MARIADB_DATABASE: bugzilla
+      MARIADB_USER: bugzilla
+      MARIADB_PASSWORD: ${BUGZILLA_DB_PASSWORD}
+    volumes:
+      - bugzilla-db:/var/lib/mysql
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  bugzilla:
+    build: ./bugzilla
+    restart: unless-stopped
+    depends_on:
+      bugzilla-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      MYSQL_HOST: bugzilla-db
+      MYSQL_DATABASE: bugzilla
+      MYSQL_USER: bugzilla
+      MYSQL_PASSWORD: ${BUGZILLA_DB_PASSWORD}
+      BUGZILLA_ADMIN_EMAIL: ${BUGZILLA_ADMIN_EMAIL}
+      BUGZILLA_ADMIN_PASSWORD: ${BUGZILLA_ADMIN_PASSWORD}
+      BUGZILLA_URL: http://localhost:8080/
+      BUGZILLA_SERVER_NAME: localhost
+      BUGZILLA_LISTEN_PORT: 8080
+      BUGZILLA_MAIL_DELIVERY_METHOD: None
+    networks:
+      default:
+        aliases:
+          - bugzilla.localhost
+    volumes:
+      - bugzilla-data:/var/www/html/bugzilla/data
+      - bugzilla-config:/var/www/html/bugzilla/localconfig.d
+volumes:
+  squash-db:
+  squash-logs:
+  bugzilla-db:
+  bugzilla-data:
+  bugzilla-config:
+
+
+
+
+
