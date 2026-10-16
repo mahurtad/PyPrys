@@ -1,0 +1,56 @@
+@page
+@model PortafolioQA.Pages.Admin.Instituciones.IndexModel
+@{
+    ViewData["Title"] = "Instituciones";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Instituciones</h1>
+    <a asp-page="Create" class="btn btn-primary">Nueva institución</a>
+</div>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+@if (!Model.Instituciones.Any())
+{
+    <div class="alert alert-info">
+        El catálogo de instituciones está vacío. Registra la primera institución para empezar a usar el portafolio.
+    </div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var i in Model.Instituciones)
+            {
+                <tr>
+                    <td>@i.Nombre</td>
+                    <td>
+                        @if (i.Activo)
+                        {
+                            <span class="badge bg-success">Activa</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactiva</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-page="Edit" asp-route-id="@i.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a asp-page="Delete" asp-route-id="@i.Id" class="btn btn-sm btn-outline-danger">@(i.Activo ? "Desactivar" : "Activar")</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

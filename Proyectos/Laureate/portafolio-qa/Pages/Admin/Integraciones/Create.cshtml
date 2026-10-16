@@ -1,0 +1,22 @@
+@page
+@model PortafolioQA.Pages.Admin.Integraciones.CreateModel
+@{
+    ViewData["Title"] = "Nueva asociación externa";
+    ViewData["Proyectos"] = Model.Proyectos;
+}
+
+<h1 class="h3 mb-3">Nueva asociación externa</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post">
+            <partial name="_Form" for="Integracion" />
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

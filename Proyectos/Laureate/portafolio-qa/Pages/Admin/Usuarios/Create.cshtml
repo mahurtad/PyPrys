@@ -1,0 +1,48 @@
+@page
+@model PortafolioQA.Pages.Admin.Usuarios.CreateModel
+@{
+    ViewData["Title"] = "Nuevo usuario";
+}
+
+<h1 class="h3 mb-3">Nuevo usuario</h1>
+<div class="row">
+    <div class="col-md-6">
+        <form method="post" autocomplete="off">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Entrada.Nombres" class="form-label">Nombres</label>
+                    <input asp-for="Entrada.Nombres" class="form-control" />
+                    <span asp-validation-for="Entrada.Nombres" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Entrada.Apellidos" class="form-label">Apellidos</label>
+                    <input asp-for="Entrada.Apellidos" class="form-control" />
+                    <span asp-validation-for="Entrada.Apellidos" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Entrada.Correo" class="form-label">Correo</label>
+                <input asp-for="Entrada.Correo" class="form-control" />
+                <span asp-validation-for="Entrada.Correo" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Entrada.Rol" class="form-label">Rol</label>
+                <select asp-for="Entrada.Rol" class="form-select" asp-items="@(new SelectList(Model.RolesDisponibles))"></select>
+                <span asp-validation-for="Entrada.Rol" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Entrada.Contrasena" class="form-label">Contraseña inicial</label>
+                <input asp-for="Entrada.Contrasena" class="form-control" autocomplete="new-password" />
+                <div class="form-text">Mínimo 10 caracteres, con mayúscula, minúscula y número.</div>
+                <span asp-validation-for="Entrada.Contrasena" class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-primary">Crear</button>
+            <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

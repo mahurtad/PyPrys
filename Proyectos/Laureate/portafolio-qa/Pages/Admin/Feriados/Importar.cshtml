@@ -1,0 +1,67 @@
+@page
+@model PortafolioQA.Pages.Admin.Feriados.ImportarModel
+@{
+    ViewData["Title"] = "Importar feriados";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Importar feriados (CSV)</h1>
+    <a asp-page="Index" class="btn btn-outline-secondary">&larr; Volver a feriados</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <p class="mb-2">1. Descarga la plantilla, complétala y guárdala como <strong>CSV</strong>.</p>
+                <a asp-page-handler="Plantilla" class="btn btn-outline-primary btn-sm mb-3">Descargar plantilla</a>
+
+                <p class="mb-2">2. Sube el archivo:</p>
+                <form method="post" enctype="multipart/form-data">
+                    @if (Model.Error != null)
+                    {
+                        <div class="alert alert-danger py-2">@Model.Error</div>
+                    }
+                    <input asp-for="Archivo" type="file" accept=".csv" class="form-control mb-3" />
+                    <button type="submit" class="btn btn-primary">Importar</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="small text-muted mt-3">
+            <strong>Columnas (ambas obligatorias):</strong>
+            <ul class="mb-1">
+                <li><strong>Fecha</strong>: dd/MM/yyyy (por ejemplo 28/07/2027) o yyyy-MM-dd.</li>
+                <li><strong>Nombre</strong>: máximo 150 caracteres.</li>
+            </ul>
+            Separador coma o punto y coma, máximo 500 filas y 1 MB. Las fechas que ya tienen feriado se omiten (no se modifican). Las filas con error no impiden importar las válidas.
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        @if (Model.Resultados.Any())
+        {
+            var creados = Model.Resultados.Count(r => r.Estado == "Creado");
+            var omitidos = Model.Resultados.Count(r => r.Estado == "Omitido");
+            var errores = Model.Resultados.Count(r => r.Estado == "Error");
+            <div class="alert @(errores > 0 ? "alert-warning" : "alert-success") py-2">
+                <strong>@creados</strong> creado(s) · <strong>@omitidos</strong> omitido(s) · <strong>@errores</strong> con error.
+            </div>
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Línea</th><th>Fecha</th><th>Nombre</th><th>Resultado</th><th>Detalle</th></tr></thead>
+                <tbody>
+                    @foreach (var r in Model.Resultados)
+                    {
+                        <tr>
+                            <td>@r.Fila</td>
+                            <td>@r.Fecha</td>
+                            <td>@r.Nombre</td>
+                            <td><span class="badge @(r.Estado == "Creado" ? "bg-success" : r.Estado == "Omitido" ? "bg-secondary" : "bg-danger")">@r.Estado</span></td>
+                            <td>@r.Detalle</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

@@ -1,0 +1,18 @@
+@model PortafolioQA.Models.Proyecto
+@* Etiqueta de Bugzilla: "Sincronizado" solo con producto, componente y versión verificados y el vínculo guardado.
+   No habla de la asociación Squash → Bugzilla, que se configura a mano en Squash TM. *@
+@if (Model.SquashProjectId is not null)
+{
+    var v = Model.VinculoBugzilla;
+    var estado = v?.Estado ?? EstadoBugzilla.Pendiente;
+    var (texto, clase) = estado switch
+    {
+        EstadoBugzilla.Configurado => ("Sincronizado con Bugzilla", "bg-success"),
+        EstadoBugzilla.Error => ("Error en Bugzilla", "bg-danger"),
+        _ => ("Bugzilla: Pendiente", "bg-secondary")
+    };
+    var ayuda = estado == EstadoBugzilla.Configurado
+        ? $"Producto «{v!.ProductoNombre}» · componente {v.ComponenteNombre} · versión {v.VersionNombre} · verificado {v.UltimaSincronizacion:dd/MM/yyyy HH:mm}"
+        : (v?.UltimoError ?? "Aún no se prepara el producto en Bugzilla.");
+    <span class="badge @clase" title="@ayuda" data-bugzilla-estado="@estado">@texto</span>
+}

@@ -1,0 +1,281 @@
+﻿@page
+@using PortafolioQA.Services.Conexion
+@model PortafolioQA.Pages.Setup.IndexModel
+@{
+    ViewData["Title"] = "Conexión a la base de datos";
+    var p = Model.Prueba;
+}
+
+<div class="row justify-content-center mt-3">
+<div class="col-xl-8 col-lg-10">
+
+<h1 class="h3 mb-3">Conexión a la base de datos</h1>
+
+@if (Model.Fase == FaseApp.Pendiente)
+{
+    <div class="alert alert-warning">
+        <strong>La aplicación aún no está activada.</strong> @Model.DetalleEstado
+        Complete la conexión a SQL Server para activarla. Las instalaciones y actualizaciones no modifican la base de datos:
+        todo se hace desde aquí.
+    </div>
+}
+else if (Model.Fase == FaseApp.EsquemaDesactualizado)
+{
+    <div class="alert alert-warning">
+        <strong>La base de datos necesita actualizarse.</strong> @Model.DetalleEstado
+        La aplicación permanece en mantenimiento hasta aplicar las migraciones.
+    </div>
+}
+else
+{
+    <div class="alert alert-secondary">
+        <strong>Conexión vigente</strong> — origen: @Model.OrigenActual.
+        Cambiarla guarda una configuración nueva (cifrada) que tiene prioridad sobre la del servidor y reinicia la aplicación.
+        Para volver a la anterior basta borrar <code>conexion.dat</code> de la carpeta de datos del servidor.
+    </div>
+}
+
+@if (Model.AvisoStore != null) { <div class="alert alert-danger">@Model.AvisoStore</div> }
+@if (Model.Error != null) { <div class="alert alert-danger">@Model.Error</div> }
+@if (Model.Mensaje != null) { <div class="alert alert-success">@Model.Mensaje</div> }
+
+@if (Model.Activado)
+{
+    <div class="alert alert-success" id="activando">
+        <strong>Configuración guardada.</strong> La aplicación se está reiniciando; en unos segundos se abrirá el inicio de sesión…
+    </div>
+    <p class="text-muted small" id="activandoNota"></p>
+}
+else if (Model.ConexionSegura)
+{
+<form method="post" autocomplete="off">
+    @if (Model.ModoCodigo)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <label asp-for="Entrada.Codigo" class="form-label fw-semibold">Código de configuración</label>
+                <input asp-for="Entrada.Codigo" class="form-control" placeholder="XXXX-XXXX-XXXX" style="max-width:260px" />
+                <div class="form-text">
+                    Está en el archivo <code>@Model.ArchivoCodigo</code> del servidor (solo lo leen los administradores del servidor).
+                    Se elimina al activar la aplicación.
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">1. Servidor y base de datos</div>
+        <div class="card-body">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label asp-for="Entrada.Servidor" class="form-label">Servidor SQL <span class="text-muted">(host o servidor\instancia)</span></label>
+                    <input asp-for="Entrada.Servidor" class="form-control" id="srv" data-equipo="@Model.Equipo" />
+                    <span asp-validation-for="Entrada.Servidor" class="text-danger"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Entrada.Puerto" class="form-label">Puerto <span class="text-muted">(opcional)</span></label>
+                    <input asp-for="Entrada.Puerto" class="form-control" type="number" min="1" max="65535" />
+                    <span asp-validation-for="Entrada.Puerto" class="text-danger"></span>
+                </div>
+                <div class="col-md-8">
+                    <label asp-for="Entrada.Base" class="form-label">Base de datos</label>
+                    <input asp-for="Entrada.Base" class="form-control" />
+                    <span asp-validation-for="Entrada.Base" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">2. Autenticación</div>
+        <div class="card-body">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="Entrada.UsaSql" id="authWin" value="false" @(Model.Entrada.UsaSql ? "" : "checked") />
+                <label class="form-check-label" for="authWin"><strong>Windows</strong> — la aplicación entra con la cuenta con la que corre su sitio en IIS. Sin contraseñas guardadas.</label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="Entrada.UsaSql" id="authSql" value="true" @(Model.Entrada.UsaSql ? "checked" : "") />
+                <label class="form-check-label" for="authSql"><strong>SQL Server</strong> — usuario y contraseña (recomendado si SQL está en otro equipo).</label>
+            </div>
+            <div class="form-text mb-2" id="sugerencia"></div>
+
+            <div id="bloqueWin" class="alert alert-light border small mb-2">
+                Cuenta de la aplicación en SQL Server:
+                <code>@Model.CuentaWindows</code>
+                <span class="text-muted">@(PortafolioQA.Services.Conexion.ConexionProbador.EsServidorLocal(Model.Entrada.Servidor) ? "(SQL en este equipo)" : "(SQL en otro equipo: la aplicación se presenta como la cuenta de máquina de este servidor; reemplace DOMINIO por el nombre NetBIOS del dominio)")</span>
+            </div>
+
+            <div id="bloqueSql" class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Entrada.Usuario" class="form-label">Usuario SQL</label>
+                    <input asp-for="Entrada.Usuario" class="form-control" autocomplete="off" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Entrada.Clave" class="form-label">Contraseña</label>
+                    <input name="Entrada.Clave" id="Entrada_Clave" type="password" class="form-control" autocomplete="new-password" value="@Model.Entrada.Clave" />
+                </div>
+            </div>
+
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" name="Entrada.ConfiarCertificado" id="confiar" value="true" @(Model.Entrada.ConfiarCertificado ? "checked" : "") />
+                <input type="hidden" name="Entrada.ConfiarCertificado" value="false" />
+                <label class="form-check-label" for="confiar">Confiar en el certificado del servidor SQL (necesario si no tiene un certificado de una entidad reconocida)</label>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.ModoCodigo)
+    {
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">Confirmación de administrador</div>
+            <div class="card-body">
+                <label class="form-label">Su contraseña <span class="text-muted">(se pide para guardar la configuración o aplicar migraciones)</span></label>
+                <input name="Entrada.ClaveAdmin" type="password" class="form-control" style="max-width:320px" autocomplete="current-password" />
+            </div>
+        </div>
+    }
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button type="submit" asp-page-handler="Probar" class="btn btn-primary">Probar conexión y permisos</button>
+        <button type="submit" asp-page-handler="ScriptAcceso" class="btn btn-outline-secondary">Generar script de acceso para el DBA</button>
+    </div>
+
+    @if (p != null)
+    {
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">Resultado de la prueba</div>
+            <ul class="list-group list-group-flush">
+                @{
+                    void Fila(bool ok, string texto, string? nota = null)
+                    {
+                        <li class="list-group-item d-flex gap-2">
+                            <span class="@(ok ? "text-success" : "text-danger") fw-bold">@(ok ? "✔" : "✘")</span>
+                            <span>@texto @if (nota != null) { <span class="text-muted small d-block">@nota</span> }</span>
+                        </li>
+                    }
+                }
+                @{ Fila(p.Conecta, "Conexión con el servidor", p.Version != null ? "SQL Server " + p.Version : null); }
+                @{ Fila(p.BaseExiste, "Base de datos accesible"); }
+                @if (p.BaseExiste)
+                {
+                    Fila(p.Lectura, "Permiso de lectura");
+                    Fila(p.Escritura, "Permiso de escritura (insertar, actualizar y eliminar)");
+                    Fila(!p.BaseAjena, "La base pertenece a Portafolio QA o está vacía", p.BaseAjena ? "Contiene tablas ajenas a la aplicación. Elija otra base para no afectar esos datos." : null);
+                    if (p.Lectura && !p.BaseAjena)
+                    {
+                        Fila(p.EsquemaAlDia, p.EsquemaAlDia ? "Esquema al día" : $"Esquema: faltan {p.Pendientes.Count} migraciones ({p.Aplicadas} aplicadas)");
+                    }
+                }
+            </ul>
+            @if (p.Error != null)
+            {
+                <div class="card-body text-danger small">@p.Error</div>
+            }
+        </div>
+
+        @if (p.BaseExiste && p.PermisosOk && !p.BaseAjena && !p.EsquemaAlDia)
+        {
+            <div class="card mb-3 border-warning">
+                <div class="card-body">
+                    <p class="mb-2"><strong>El esquema de la base debe completarse.</strong>
+                        @(p.PuedeAlterarEsquema ? "La cuenta tiene permiso para hacerlo desde aquí." : "La cuenta no puede crear tablas: use el script para que lo ejecute el administrador de la base.")</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (p.PuedeAlterarEsquema)
+                        {
+                            <button type="submit" asp-page-handler="Migrar" class="btn btn-warning">Aplicar migraciones ahora</button>
+                        }
+                        <button type="submit" asp-page-handler="ScriptEsquema" class="btn btn-outline-secondary" formnovalidate>Descargar script de esquema (.sql)</button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    @if (Model.ScriptAcceso != null)
+    {
+        <div class="card mb-3">
+            <div class="card-header fw-semibold d-flex justify-content-between">
+                <span>Script de acceso para el administrador de la base de datos</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('scriptAcceso').innerText)">Copiar</button>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">No contiene contraseñas y no se ejecuta solo. Debe ejecutarlo quien tenga permiso para crear logins y usuarios en SQL Server; después, vuelva a probar la conexión.</p>
+                <pre id="scriptAcceso" class="mb-0 small" style="white-space:pre-wrap">@Model.ScriptAcceso</pre>
+            </div>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">3. Activar</div>
+        <div class="card-body">
+            <p class="small text-muted mb-2">
+                Se vuelve a validar todo antes de guardar. Solo se activa si hay conexión, permisos de lectura y escritura y el esquema está al día.
+                La configuración se guarda cifrada y la aplicación se reinicia.
+            </p>
+            <button type="submit" asp-page-handler="Activar" class="btn btn-success">Guardar y activar</button>
+        </div>
+    </div>
+
+    @if (Model.Fase == FaseApp.EsquemaDesactualizado && Model.TieneConexionActual)
+    {
+        <div class="card mb-3 border-warning">
+            <div class="card-header fw-semibold">Actualizar el esquema con la conexión vigente</div>
+            <div class="card-body">
+                <p class="small text-muted">Usa la conexión que ya tiene la aplicación (no necesita volver a escribir credenciales; solo su contraseña de administrador, arriba). Si su cuenta no puede modificar tablas, descargue el script.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" asp-page-handler="MigrarActual" class="btn btn-warning" formnovalidate>Aplicar migraciones</button>
+                    <button type="submit" asp-page-handler="ScriptEsquema" class="btn btn-outline-secondary" formnovalidate>Descargar script de esquema (.sql)</button>
+                </div>
+            </div>
+        </div>
+    }
+</form>
+}
+
+</div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var srv = document.getElementById('srv');
+            var win = document.getElementById('authWin'), sql = document.getElementById('authSql');
+            var bw = document.getElementById('bloqueWin'), bs = document.getElementById('bloqueSql');
+            var sug = document.getElementById('sugerencia');
+            if (!srv) return;
+            function esLocal(v) {
+                v = (v || '').trim().toLowerCase().replace(/^tcp:/, '').split('\\')[0].split(',')[0].trim();
+                var eq = (srv.dataset.equipo || '').toLowerCase();
+                return v === '' ? null : (v === '.' || v === '(local)' || v === 'localhost' || v === '127.0.0.1' || v.indexOf('(localdb)') === 0 || v === eq || v.indexOf(eq + '.') === 0);
+            }
+            function pinta() { var s = sql.checked; bs.style.display = s ? '' : 'none'; bw.style.display = s ? 'none' : ''; }
+            var tocado = false;
+            win.addEventListener('change', function () { tocado = true; pinta(); });
+            sql.addEventListener('change', function () { tocado = true; pinta(); });
+            srv.addEventListener('change', function () {
+                var l = esLocal(srv.value);
+                if (l === null) { sug.textContent = ''; return; }
+                sug.textContent = l ? 'Sugerencia: SQL en este equipo → autenticación Windows.' : 'Sugerencia: SQL en otro equipo → autenticación SQL Server.';
+                if (!tocado) { (l ? win : sql).checked = true; pinta(); }
+            });
+            pinta();
+        })();
+
+        (function () {
+            var el = document.getElementById('activando');
+            if (!el) return;
+            var intentos = 0;
+            (function sondear() {
+                fetch('/healthz', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+                    if (t.trim() === 'ok') { location.href = '/Account/Login'; return; }
+                    throw new Error('aún no');
+                }).catch(function () {
+                    if (++intentos > 60) { document.getElementById('activandoNota').textContent = 'La aplicación tarda en responder. Recargue la página en unos segundos.'; return; }
+                    setTimeout(sondear, 2000);
+                });
+            })();
+        })();
+    </script>
+}

@@ -1,0 +1,31 @@
+@page
+@model PortafolioQA.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Iniciar sesión";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5 col-lg-4">
+        <h1 class="h3 mb-3">Iniciar sesión</h1>
+        <form method="post">
+            <input type="hidden" asp-for="ReturnUrl" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+            <div class="mb-3">
+                <label asp-for="Entrada.Correo" class="form-label">Correo</label>
+                <input asp-for="Entrada.Correo" class="form-control" autocomplete="username" autofocus />
+                <span asp-validation-for="Entrada.Correo" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Entrada.Contrasena" class="form-label">Contraseña</label>
+                <input asp-for="Entrada.Contrasena" class="form-control" autocomplete="current-password" />
+                <span asp-validation-for="Entrada.Contrasena" class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+        </form>
+        <p class="text-muted small mt-3">¿Sin acceso o contraseña olvidada? Solicítalo a un administrador de la aplicación.</p>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

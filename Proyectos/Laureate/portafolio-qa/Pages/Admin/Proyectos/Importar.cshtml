@@ -1,0 +1,82 @@
+@page
+@model PortafolioQA.Pages.Admin.Proyectos.ImportarModel
+@{
+    ViewData["Title"] = "Importar proyectos";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Importar proyectos (CSV)</h1>
+    <a asp-page="Index" class="btn btn-outline-secondary">&larr; Volver a proyectos</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <p class="mb-2">1. Descarga la plantilla, complétala y guárdala como <strong>CSV</strong>.</p>
+                <a asp-page-handler="Plantilla" class="btn btn-outline-primary btn-sm mb-3">Descargar plantilla</a>
+
+                <p class="mb-2">2. Sube el archivo:</p>
+                <form method="post" enctype="multipart/form-data">
+                    @if (Model.Error != null)
+                    {
+                        <div class="alert alert-danger py-2">@Model.Error</div>
+                    }
+                    <input asp-for="Archivo" type="file" accept=".csv" class="form-control mb-3" />
+                    <button type="submit" class="btn btn-primary">Importar</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="alert alert-info small mt-3 mb-0">
+            Solo para proyectos <strong>nuevos</strong>: todos entran <strong>Planificados al 0 %</strong>. El avance y el estado se calculan después con las actividades, por eso el archivo no lleva esas columnas. Cada proyecto incluye las tres actividades predeterminadas con fechas proporcionales. El equipo y los hitos se registran luego.
+        </div>
+
+        <div class="small text-muted mt-3">
+            <strong>Columnas:</strong>
+            <ul class="mb-1">
+                <li><strong>Nombre, Institucion, FechaInicio, FechaFin</strong> (obligatorias). Nombre: máximo 200 caracteres. Institucion: nombre exacto de una institución activa. Fechas: dd/MM/yyyy o yyyy-MM-dd (se aceptan fechas pasadas); la fecha fin no puede ser anterior a la de inicio.</li>
+                <li><strong>Tipo</strong> (opcional): Proyecto, Requerimiento no BAU o BAU. Por defecto Proyecto.</li>
+                <li><strong>PM, Lider</strong> (opcionales): máximo 150 caracteres. <strong>Descripcion</strong>: máximo 500.</li>
+                <li><strong>Sistemas</strong> (opcional): nombres de sistemas activos separados por <code>|</code>.</li>
+                <li><strong>Activo</strong> (opcional): Sí o No; por defecto Sí.</li>
+            </ul>
+            Separador coma o punto y coma, máximo 500 filas y 1 MB. Un proyecto con el mismo nombre en la misma institución se omite (no se modifica). Las filas con error no impiden importar las válidas.
+            @if (Model.InstitucionesActivas.Any())
+            {
+                <div class="mt-2"><strong>Instituciones activas:</strong> @string.Join(", ", Model.InstitucionesActivas).</div>
+            }
+            @if (Model.SistemasActivos.Any())
+            {
+                <div class="mt-1"><strong>Sistemas activos:</strong> @string.Join(", ", Model.SistemasActivos).</div>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        @if (Model.Resultados.Any())
+        {
+            var creados = Model.Resultados.Count(r => r.Estado == "Creado");
+            var omitidos = Model.Resultados.Count(r => r.Estado == "Omitido");
+            var errores = Model.Resultados.Count(r => r.Estado == "Error");
+            <div class="alert @(errores > 0 ? "alert-warning" : "alert-success") py-2">
+                <strong>@creados</strong> creado(s) · <strong>@omitidos</strong> omitido(s) · <strong>@errores</strong> con error.
+            </div>
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Línea</th><th>Nombre</th><th>Institución</th><th>Resultado</th><th>Detalle</th></tr></thead>
+                <tbody>
+                    @foreach (var r in Model.Resultados)
+                    {
+                        <tr>
+                            <td>@r.Fila</td>
+                            <td>@r.Nombre</td>
+                            <td>@r.Institucion</td>
+                            <td><span class="badge @(r.Estado == "Creado" ? "bg-success" : r.Estado == "Omitido" ? "bg-secondary" : "bg-danger")">@r.Estado</span></td>
+                            <td>@r.Detalle</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

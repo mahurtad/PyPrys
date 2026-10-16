@@ -1,0 +1,200 @@
+@page
+@model PortafolioQA.Pages.Portafolio.IndexModel
+@using PortafolioQA.Models
+@{
+    ViewData["Title"] = "Portafolio";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Portafolio de Proyectos</h1>
+    <div class="btn-group" role="group" aria-label="Cambiar vista">
+        <button type="button" id="btn-vista-tarjetas" class="btn btn-outline-primary active">Tarjetas</button>
+        <button type="button" id="btn-vista-tabla" class="btn btn-outline-primary">Tabla</button>
+    </div>
+</div>
+
+@if (!Model.Instituciones.Any())
+{
+    <div class="alert alert-info">
+        No hay instituciones registradas todavía.
+        @if (User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.Editor))
+        {
+            <span>Ingresa la primera desde <a asp-page="/Admin/Instituciones/Create">Administración &rarr; Instituciones</a> antes de crear proyectos.</span>
+        }
+        else
+        {
+            <span>Solicita a un editor o administrador que las registre.</span>
+        }
+    </div>
+}
+
+<form method="get" class="card card-body mb-4">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Institución</label>
+            <select name="InstitucionId" class="form-select" asp-items="@(new SelectList(Model.Instituciones, "Id", "Nombre"))">
+                <option value="">Todas</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Tipo</label>
+            <select name="Tipo" class="form-select">
+                <option value="">Todos</option>
+                @foreach (var tipo in Enum.GetValues<TipoIniciativa>())
+                {
+                    <option value="@tipo" selected="@(Model.Tipo == tipo)">@tipo.Texto()</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Estado</label>
+            <select name="Estado" class="form-select">
+                <option value="">Todos</option>
+                @foreach (var estado in Enum.GetValues<EstadoProyecto>())
+                {
+                    <option value="@estado" selected="@(Model.Estado == estado)">@estado.Texto()</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Recurso QA</label>
+            <select name="RecursoQAId" class="form-select" asp-items="@(new SelectList(Model.RecursosQA, "Id", "NombreCompleto"))">
+                <option value="">Todos</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">PM</label>
+            <select name="Pm" class="form-select">
+                <option value="">Todos</option>
+                @foreach (var pm in Model.Pms)
+                {
+                    <option value="@pm" selected="@(Model.Pm == pm)">@pm</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Líder</label>
+            <select name="Lider" class="form-select">
+                <option value="">Todos</option>
+                @foreach (var lider in Model.Lideres)
+                {
+                    <option value="@lider" selected="@(Model.Lider == lider)">@lider</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Sistema impactado</label>
+            <select name="SistemaId" class="form-select" asp-items="@(new SelectList(Model.Sistemas, "Id", "Nombre"))">
+                <option value="">Todos</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary me-2">Filtrar</button>
+            <a asp-page="/Portafolio/Index" class="btn btn-outline-secondary">Limpiar</a>
+        </div>
+    </div>
+</form>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <p class="text-muted mb-0">@Model.Proyectos.Count iniciativa(s) encontradas.</p>
+    <a href="@Url.Page("/Portafolio/Index", null, new { forzar = true, Model.InstitucionId, Model.Tipo, Model.Estado, Model.RecursoQAId, Model.Pm, Model.Lider, Model.SistemaId })"
+       class="btn btn-sm btn-link text-muted text-decoration-none" title="Actualizar el avance desde Squash TM ahora">&#8635; Actualizar</a>
+</div>
+
+<div id="vista-tarjetas" class="row g-3 row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-5">
+    @foreach (var p in Model.Proyectos)
+    {
+        <div class="col">
+            <div class="card card-compacta h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <h6 class="card-title mb-0">@p.Nombre</h6>
+                        <span class="badge @p.Estado.BadgeClase()">@p.Estado.Texto()</span>
+                    </div>
+                    <div class="text-muted">@p.Institucion?.Nombre · @p.Tipo.Texto()</div>
+                    <div class="mb-1"><partial name="_EtiquetaBugzilla" model="p" /></div>
+                    <ul class="list-unstyled mb-1">
+                        <li><strong>PM:</strong> @(p.PM ?? "—") · <strong>Líder:</strong> @(p.Lider ?? "—")</li>
+                        <li><strong>Periodo:</strong> @p.FechaInicio.ToString("dd/MM/yyyy") - @p.FechaFin.ToString("dd/MM/yyyy")</li>
+                        <li><strong>Recursos QA:</strong>
+                            @if (p.Asignaciones.Any())
+                            {
+                                @string.Join(", ", p.Asignaciones.GroupBy(a => a.RecursoQAId).Select(g => $"{g.First().RecursoQA?.NombreCompleto} ({g.Max(a => a.Porcentaje):0.#}%)"))
+                            }
+                            else { <span class="text-muted">Sin asignar</span> }
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center gap-2 mt-auto">
+                        <a asp-page="/Portafolio/Detalle" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary py-0">Ver detalle</a>
+                        <div class="progress flex-grow-1" style="height:14px" role="progressbar" aria-valuenow="@p.Avance" aria-valuemin="0" aria-valuemax="100" title="Avance @p.Avance%">
+                            <div class="progress-bar" style="width:@(p.Avance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%;@(p.Avance > 0 ? "min-width:3rem" : "")">@(p.Avance.ToString("0.#"))%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    @if (!Model.Proyectos.Any())
+    {
+        <div class="col-12">
+            <div class="alert alert-secondary">No hay iniciativas que coincidan con los filtros seleccionados.</div>
+        </div>
+    }
+</div>
+
+<div id="vista-tabla" class="table-responsive d-none">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Institución</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>PM</th>
+                <th>Líder</th>
+                <th>Inicio</th>
+                <th>Fin</th>
+                <th>Avance</th>
+                <th>Recursos QA</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model.Proyectos)
+            {
+                <tr>
+                    <td>@p.Nombre</td>
+                    <td>@p.Institucion?.Nombre</td>
+                    <td>@p.Tipo.Texto()</td>
+                    <td><span class="badge @p.Estado.BadgeClase()">@p.Estado.Texto()</span> <partial name="_EtiquetaBugzilla" model="p" /></td>
+                    <td>@(p.PM ?? "—")</td>
+                    <td>@(p.Lider ?? "—")</td>
+                    <td>@p.FechaInicio.ToString("dd/MM/yyyy")</td>
+                    <td>@p.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@p.Avance%</td>
+                    <td>
+                        @{ var recursos = p.Asignaciones.Select(a => a.RecursoQA?.NombreCompleto).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList(); }
+                        @if (recursos.Any())
+                        {
+                            <div class="chips-recursos">
+                                @foreach (var r in recursos) { <span class="chip-recurso">@r</span> }
+                            </div>
+                        }
+                        else { <span>—</span> }
+                    </td>
+                    <td><a asp-page="/Portafolio/Detalle" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary">Detalle</a></td>
+                </tr>
+            }
+            @if (!Model.Proyectos.Any())
+            {
+                <tr>
+                    <td colspan="11" class="text-center text-muted">No hay iniciativas que coincidan con los filtros seleccionados.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script src="~/js/portafolio-vista.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,62 @@
+@page
+@model PortafolioQA.Pages.Admin.Feriados.IndexModel
+@{
+    ViewData["Title"] = "Feriados";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-1">
+    <h1 class="h3 mb-0">Feriados</h1>
+    <div class="d-flex gap-2">
+        <a asp-page="Importar" class="btn btn-outline-primary">Importar CSV</a>
+        <a asp-page="Importar" asp-page-handler="Plantilla" class="btn btn-outline-secondary">Descargar plantilla</a>
+    </div>
+</div>
+<p class="text-muted">Los feriados no son días laborables: no cuentan como capacidad ni como carga. Los sábados y domingos ya se excluyen automáticamente. El catálogo comienza vacío; registra los feriados oficiales que apliquen.</p>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+<form method="post" class="row g-2 align-items-start mb-4">
+    <div asp-validation-summary="ModelOnly" class="text-danger col-12"></div>
+    <div class="col-md-3">
+        <input asp-for="Nuevo.Fecha" type="date" class="form-control" />
+        <span asp-validation-for="Nuevo.Fecha" class="text-danger"></span>
+    </div>
+    <div class="col-md-5">
+        <input asp-for="Nuevo.Nombre" class="form-control" placeholder="Nombre del feriado" />
+        <span asp-validation-for="Nuevo.Nombre" class="text-danger"></span>
+    </div>
+    <div class="col-md-2"><button type="submit" class="btn btn-primary">Agregar</button></div>
+</form>
+
+@if (!Model.Feriados.Any())
+{
+    <div class="alert alert-info">No hay feriados registrados todavía.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Fecha</th><th>Día</th><th>Nombre</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var f in Model.Feriados)
+            {
+                <tr>
+                    <td>@f.Fecha.ToString("dd/MM/yyyy")</td>
+                    <td>@System.Globalization.CultureInfo.GetCultureInfo("es-PE").DateTimeFormat.GetDayName(f.Fecha.DayOfWeek)</td>
+                    <td>@f.Nombre</td>
+                    <td>
+                        <form method="post" asp-page-handler="Eliminar" asp-route-id="@f.Id" onsubmit="return confirm('¿Eliminar este feriado?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

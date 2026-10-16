@@ -1,0 +1,230 @@
+@page
+@model PortafolioQA.Pages.Planificacion.CapacidadModel
+@{
+    ViewData["Title"] = "Capacidad QA";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    string Hrs(decimal v) => v.ToString("0.#");
+    string Chip(string valor) => Model.Situacion == valor ? "btn-primary" : "btn-outline-secondary";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+    <div>
+        <h1 class="h3 mb-0">Capacidad QA</h1>
+        <div class="text-muted">
+            <strong>@Model.EtiquetaPeriodo</strong> · @Model.DiasLaborables días laborables · @Hrs(Model.HorasPorDia) h por día
+            · capacidad estándar @Hrs(Model.DiasLaborables * Model.HorasPorDia) h por persona
+        </div>
+    </div>
+    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#como-se-calcula">¿Cómo se calcula?</button>
+</div>
+
+<div class="collapse mb-3" id="como-se-calcula">
+    <div class="card card-body small text-muted">
+        <ul class="mb-0">
+            <li><strong>Ocupación</strong> = horas asignadas ÷ horas de capacidad del recurso en el periodo.</li>
+            <li><strong>Horas de capacidad</strong> = días laborables × @Hrs(Model.HorasPorDia) h × % de capacidad del recurso. Los fines de semana, feriados y ausencias no suman.</li>
+            <li><strong>Horas asignadas</strong> = suma diaria de las dedicaciones de sus asignaciones vigentes × @Hrs(Model.HorasPorDia) h.</li>
+            <li><strong>Libre</strong> = horas de capacidad − horas asignadas. El exceso (sobreasignación) se muestra aparte.</li>
+            <li>La dedicación no es avance del proyecto.</li>
+        </ul>
+    </div>
+</div>
+
+<form id="filtros-capacidad" method="get" class="row g-2 align-items-end mb-3">
+    <input type="hidden" name="situacion" value="@Model.Situacion" />
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="desde">Desde</label>
+        <input id="desde" name="desde" type="date" class="form-control form-control-sm" value="@Model.Desde.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="hasta">Hasta</label>
+        <input id="hasta" name="hasta" type="date" class="form-control form-control-sm" value="@Model.Hasta.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="equipo">Equipo</label>
+        <select id="equipo" name="equipo" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            @foreach (var e in Enum.GetValues<EquipoQA>())
+            {
+                <option value="@e" selected="@(Model.Equipo == e)">@e.Texto()</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Periodo rápido">
+            <a class="btn @(Model.Periodo == "mes" ? "btn-primary" : "btn-outline-secondary")" asp-page="Capacidad" asp-route-periodo="mes" asp-route-equipo="@Model.Equipo" asp-route-situacion="@Model.Situacion">Este mes</a>
+            <a class="btn @(Model.Periodo == "proximo" ? "btn-primary" : "btn-outline-secondary")" asp-page="Capacidad" asp-route-periodo="proximo" asp-route-equipo="@Model.Equipo" asp-route-situacion="@Model.Situacion">Próximo mes</a>
+            <a class="btn @(Model.Periodo == "trimestre" ? "btn-primary" : "btn-outline-secondary")" asp-page="Capacidad" asp-route-periodo="trimestre" asp-route-equipo="@Model.Equipo" asp-route-situacion="@Model.Situacion">Trimestre</a>
+        </div>
+    </div>
+    <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Aplicar</button></div>
+</form>
+
+@if (Model.Error != null)
+{
+    <div class="alert alert-warning py-2">@Model.Error</div>
+}
+
+@if (!Model.Recursos.Any())
+{
+    <div class="alert alert-info">No hay recursos QA activos para el filtro seleccionado.</div>
+}
+else
+{
+    <div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3 mb-3">
+        <div class="col">
+            <div class="card text-center h-100"><div class="card-body py-3">
+                <div class="fs-2 lh-1">@Model.Recursos.Count</div>
+                <div class="text-muted small">Recursos QA activos</div>
+            </div></div>
+        </div>
+        <div class="col">
+            <div class="card text-center h-100 @(Model.Sobreasignados > 0 ? "border-danger" : "")"><div class="card-body py-3">
+                <div class="fs-2 lh-1 @(Model.Sobreasignados > 0 ? "text-danger" : "")">@Model.Sobreasignados</div>
+                <div class="text-muted small" title="Algún día del periodo superan su capacidad">Sobreasignados</div>
+            </div></div>
+        </div>
+        <div class="col">
+            <div class="card text-center h-100"><div class="card-body py-3">
+                <div class="fs-2 lh-1 text-success">@Model.ConEspacio</div>
+                <div class="text-muted small" title="Tienen horas libres y no están sobreasignados">Con espacio</div>
+            </div></div>
+        </div>
+        <div class="col">
+            <div class="card text-center h-100"><div class="card-body py-3">
+                <div class="fs-2 lh-1">@(Model.OcupacionEquipo.HasValue ? Model.OcupacionEquipo.Value.ToString("0") + " %" : "—")</div>
+                <div class="text-muted small" title="Horas asignadas ÷ horas de capacidad de todo el equipo">Ocupación del equipo</div>
+                <div class="text-muted small">@Hrs(Model.HorasAsignadas) h de @Hrs(Model.HorasCapacidad) h</div>
+            </div></div>
+        </div>
+        <div class="col">
+            <div class="card text-center h-100"><div class="card-body py-3">
+                <div class="fs-2 lh-1">@Hrs(Model.HorasLibres) h</div>
+                <div class="text-muted small" title="Capacidad no asignada">Horas libres</div>
+                <div class="text-muted small">≈ @((Model.HorasLibres / Model.HorasPorDia).ToString("0")) días-persona</div>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filtrar por situación">
+        <a class="btn btn-sm @Chip("todos")" asp-page="Capacidad" asp-route-desde="@Model.Desde.ToString("yyyy-MM-dd")" asp-route-hasta="@Model.Hasta.ToString("yyyy-MM-dd")" asp-route-equipo="@Model.Equipo" asp-route-periodo="@Model.Periodo">Todos (@Model.Recursos.Count)</a>
+        <a class="btn btn-sm @Chip("sobre")" asp-page="Capacidad" asp-route-desde="@Model.Desde.ToString("yyyy-MM-dd")" asp-route-hasta="@Model.Hasta.ToString("yyyy-MM-dd")" asp-route-equipo="@Model.Equipo" asp-route-periodo="@Model.Periodo" asp-route-situacion="sobre">Sobreasignados (@Model.Sobreasignados)</a>
+        <a class="btn btn-sm @Chip("espacio")" asp-page="Capacidad" asp-route-desde="@Model.Desde.ToString("yyyy-MM-dd")" asp-route-hasta="@Model.Hasta.ToString("yyyy-MM-dd")" asp-route-equipo="@Model.Equipo" asp-route-periodo="@Model.Periodo" asp-route-situacion="espacio">Con espacio (@Model.ConEspacio)</a>
+        <a class="btn btn-sm @Chip("completo")" asp-page="Capacidad" asp-route-desde="@Model.Desde.ToString("yyyy-MM-dd")" asp-route-hasta="@Model.Hasta.ToString("yyyy-MM-dd")" asp-route-equipo="@Model.Equipo" asp-route-periodo="@Model.Periodo" asp-route-situacion="completo">Completos (@Model.Completos)</a>
+    </div>
+
+    @if (!Model.Visibles.Any())
+    {
+        <div class="alert alert-secondary">Ningún recurso coincide con este filtro en el periodo.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle cap-tabla">
+                <thead>
+                    <tr>
+                        <th>Recurso QA</th>
+                        <th style="min-width:220px">Ocupación</th>
+                        <th class="text-end">Horas asignadas</th>
+                        <th class="text-end">Horas libres</th>
+                        <th>Situación</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Visibles)
+                    {
+                        var situacion = PortafolioQA.Pages.Planificacion.CapacidadModel.Clasificar(r);
+                        var ocupacion = PortafolioQA.Pages.Planificacion.CapacidadModel.Ocupacion(r);
+                        var libres = Math.Max(0, r.HorasCapacidad - r.HorasAsignadas);
+                        var colorBarra = situacion switch { "sobre" => "bg-danger", "completo" => "bg-warning", _ => "bg-success" };
+                        var ancho = Math.Min(100, ocupacion ?? 0).ToString("0", inv);
+                        var idDetalle = "det-" + r.Recurso.Id;
+                        <tr class="@(situacion == "sobre" ? "table-danger" : "")">
+                            <td>
+                                <div class="fw-semibold">@r.Recurso.NombreCompleto</div>
+                                <div class="small text-muted">@r.Recurso.Equipo.Texto() · capacidad @Hrs(r.Recurso.CapacidadDisponible)%</div>
+                            </td>
+                            <td>
+                                @if (ocupacion.HasValue)
+                                {
+                                    <div class="progress" style="height:18px" role="progressbar" aria-valuenow="@ancho" aria-valuemin="0" aria-valuemax="100"
+                                         title="@Hrs(r.HorasAsignadas) h asignadas de @Hrs(r.HorasCapacidad) h de capacidad">
+                                        <div class="progress-bar @colorBarra" style="width:@(ancho)%">@(ocupacion.Value.ToString("0")) %</div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Sin horas de capacidad en el periodo</span>
+                                }
+                            </td>
+                            <td class="text-end">@Hrs(r.HorasAsignadas) <span class="text-muted small">de @Hrs(r.HorasCapacidad) h</span></td>
+                            <td class="text-end">
+                                @Hrs(libres) h
+                                @if (libres > 0)
+                                {
+                                    <div class="text-muted small">≈ @((libres / Model.HorasPorDia).ToString("0.#")) días</div>
+                                }
+                            </td>
+                            <td>
+                                @if (situacion == "sobre") { <span class="badge bg-danger">Sobreasignado</span> }
+                                else if (situacion == "sindias") { <span class="badge bg-secondary">Sin días laborables</span> }
+                                else if (situacion == "libre") { <span class="badge bg-success">Libre</span> }
+                                else if (situacion == "espacio") { <span class="badge bg-info text-dark">Con espacio</span> }
+                                else { <span class="badge bg-warning text-dark">Completo</span> }
+                                @if (r.Sobreasignado)
+                                {
+                                    <div class="small text-danger">@r.DiasSobreasignados día(s) sobre su capacidad</div>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#@idDetalle" aria-expanded="false">Detalle</button>
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="@idDetalle">
+                            <td colspan="6" class="bg-light">
+                                <div class="row small g-2">
+                                    <div class="col-6 col-md-3"><span class="text-muted">Días laborables</span><div class="fw-semibold">@r.DiasLaborables</div></div>
+                                    <div class="col-6 col-md-3"><span class="text-muted">Carga promedio</span><div class="fw-semibold">@Hrs(r.CargaPromedio)%</div></div>
+                                    <div class="col-6 col-md-3"><span class="text-muted">Pico de carga</span><div class="fw-semibold @(r.Sobreasignado ? "text-danger" : "")">@Hrs(r.CargaMaxima)%</div></div>
+                                    <div class="col-6 col-md-3"><span class="text-muted">Disponibilidad promedio</span><div class="fw-semibold">@Hrs(r.DisponibilidadPromedio)%</div></div>
+                                    <div class="col-6 col-md-3"><span class="text-muted">Días con disponibilidad</span><div class="fw-semibold">@r.DiasConDisponibilidad</div></div>
+                                    <div class="col-6 col-md-3"><span class="text-muted">Días de ausencia</span><div class="fw-semibold">@r.DiasAusente</div></div>
+                                    <div class="col-6 col-md-3"><span class="text-muted">Días sobreasignados</span><div class="fw-semibold">@r.DiasSobreasignados</div></div>
+                                </div>
+                                @if (r.Rangos.Any())
+                                {
+                                    <div class="small mt-2 text-danger">
+                                        <strong>Sobreasignación:</strong>
+                                        <ul class="mb-0">
+                                            @foreach (var g in r.Rangos)
+                                            {
+                                                <li>
+                                                    @g.Inicio.ToString("dd/MM/yyyy") – @g.Fin.ToString("dd/MM/yyyy"):
+                                                    pico @Hrs(g.CargaMaxima)% (exceso @Hrs(g.ExcesoMaximo)% sobre su capacidad) · @string.Join(", ", g.Proyectos)
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@section Scripts {
+    <script>
+        // Aplica fechas y equipo al cambiarlos; "Aplicar" queda solo como respaldo sin JS.
+        (function () {
+            var form = document.getElementById('filtros-capacidad');
+            if (!form) return;
+            var boton = form.querySelector('button[type="submit"]');
+            if (boton) boton.closest('.col-auto').classList.add('d-none');
+            form.addEventListener('change', function () { form.submit(); });
+        })();
+    </script>
+}

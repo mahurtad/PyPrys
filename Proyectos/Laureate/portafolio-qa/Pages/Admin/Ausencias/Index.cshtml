@@ -1,0 +1,84 @@
+@page
+@model PortafolioQA.Pages.Admin.Ausencias.IndexModel
+@{
+    ViewData["Title"] = "Ausencias";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-1">
+    <h1 class="h3 mb-0">Ausencias</h1>
+    <div class="d-flex gap-2">
+        <a asp-page="Importar" class="btn btn-outline-primary">Importar CSV</a>
+        <a asp-page="Importar" asp-page-handler="Plantilla" class="btn btn-outline-secondary">Descargar plantilla</a>
+    </div>
+</div>
+<p class="text-muted">Vacaciones, compensación, cumpleaños, licencia médica o licencia maternidad de un recurso QA. Durante una ausencia su capacidad es 0%; si tiene una asignación vigente esos días se marca como sobreasignación.</p>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+@if (!Model.Recursos.Any())
+{
+    <div class="alert alert-info">Registra al menos un recurso QA activo para poder cargar ausencias.</div>
+}
+else
+{
+    <form method="post" class="row g-2 align-items-start mb-4">
+        <div asp-validation-summary="ModelOnly" class="text-danger col-12"></div>
+        <div class="col-md-3">
+            <select asp-for="Nueva.RecursoQAId" class="form-select" asp-items="@(new SelectList(Model.Recursos, "Id", "NombreCompleto"))">
+                <option value="">Recurso QA</option>
+            </select>
+            <span asp-validation-for="Nueva.RecursoQAId" class="text-danger"></span>
+        </div>
+        <div class="col-md-2">
+            <select asp-for="Nueva.Tipo" class="form-select"
+                    asp-items="@(Enum.GetValues<PortafolioQA.Models.TipoAusencia>().Select(t => new SelectListItem(t.Texto(), ((int)t).ToString())))"></select>
+        </div>
+        <div class="col-md-2">
+            <input asp-for="Nueva.FechaInicio" type="date" class="form-control" />
+            <span asp-validation-for="Nueva.FechaInicio" class="text-danger"></span>
+        </div>
+        <div class="col-md-2">
+            <input asp-for="Nueva.FechaFin" type="date" class="form-control" />
+            <span asp-validation-for="Nueva.FechaFin" class="text-danger"></span>
+        </div>
+        <div class="col-md-2">
+            <input asp-for="Nueva.Motivo" class="form-control" placeholder="Detalle (opcional)" />
+        </div>
+        <div class="col-md-1"><button type="submit" class="btn btn-primary">Agregar</button></div>
+    </form>
+}
+
+@if (!Model.Ausencias.Any())
+{
+    <div class="alert alert-info">No hay ausencias registradas.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Recurso QA</th><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Detalle</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var a in Model.Ausencias)
+            {
+                <tr>
+                    <td>@a.RecursoQA?.NombreCompleto@(a.RecursoQA is { Activo: false } ? " (inactivo)" : "")</td>
+                    <td><span class="badge bg-secondary">@a.Tipo.Texto()</span></td>
+                    <td>@a.FechaInicio.ToString("dd/MM/yyyy")</td>
+                    <td>@a.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td>@a.Motivo</td>
+                    <td>
+                        <form method="post" asp-page-handler="Eliminar" asp-route-id="@a.Id" onsubmit="return confirm('¿Eliminar esta ausencia?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

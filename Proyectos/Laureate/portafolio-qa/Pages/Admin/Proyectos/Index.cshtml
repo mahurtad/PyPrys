@@ -1,0 +1,97 @@
+@page
+@model PortafolioQA.Pages.Admin.Proyectos.IndexModel
+@{
+    ViewData["Title"] = "Proyectos";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Proyectos</h1>
+    <div class="d-flex gap-2">
+        <a asp-page="Importar" class="btn btn-outline-primary">Importar CSV</a>
+        <a asp-page="Importar" asp-page-handler="Plantilla" class="btn btn-outline-secondary">Descargar plantilla</a>
+        <a asp-page="Create" class="btn btn-primary">Nuevo proyecto</a>
+    </div>
+</div>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-md-3"><label class="form-label small mb-1">Buscar</label><input name="Q" value="@Model.Q" class="form-control" placeholder="Nombre, PM o líder" /></div>
+    <div class="col-md-2">
+        <label class="form-label small mb-1">Estado</label>
+        <select name="Estado" class="form-select">
+            <option value="">Todos</option>
+            @foreach (var e in Enum.GetValues<PortafolioQA.Models.EstadoProyecto>())
+            {
+                <option value="@((int)e)" selected="@(Model.Estado == e)">@e.Texto()</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small mb-1">Institución</label>
+        <select name="InstitucionId" class="form-select">
+            <option value="">Todas</option>
+            @foreach (var i in Model.Instituciones)
+            {
+                <option value="@i.Id" selected="@(Model.InstitucionId == i.Id)">@i.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2"><div class="form-check mb-2"><input type="checkbox" class="form-check-input" id="inact" name="VerInactivos" value="true" checked="@Model.VerInactivos" /><label class="form-check-label" for="inact">Ver inactivos</label></div></div>
+    <div class="col-md-2 d-flex gap-2"><button class="btn btn-primary" type="submit">Filtrar</button>@if (Model.HayFiltros) { <a asp-page="Index" class="btn btn-outline-secondary">Limpiar</a> }</div>
+</form>
+
+<p class="text-muted small">Mostrando @Model.Proyectos.Count de @Model.Total proyectos.</p>
+
+@if (!Model.Proyectos.Any())
+{
+    <div class="alert alert-info">@(Model.Total == 0 ? "No hay proyectos registrados todavía." : "Ningún proyecto coincide con los filtros.")</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Institución</th>
+                <th>Tipo</th>
+                <th>Periodo</th>
+                <th>Estado</th>
+                <th>Avance</th>
+                <th>Recursos QA</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model.Proyectos)
+            {
+                <tr>
+                    <td>@p.Nombre</td>
+                    <td>@p.Institucion?.Nombre</td>
+                    <td>@p.Tipo.Texto()</td>
+                    <td class="text-nowrap small">@p.FechaInicio.ToString("dd/MM/yyyy") – @p.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td><span class="badge @p.Estado.BadgeClase()">@p.Estado.Texto()</span> @if (!p.Activo) { <span class="badge bg-secondary">Inactivo</span> }</td>
+                    <td>@p.Avance% @if (p.AvancePendienteConfirmar) { <span class="badge bg-warning text-dark">Avance por confirmar</span> }</td>
+                    <td>
+                        @{ var recursos = p.Asignaciones.Select(a => a.RecursoQA?.NombreCompleto).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList(); }
+                        @if (recursos.Any())
+                        {
+                            <div class="chips-recursos">
+                                @foreach (var r in recursos) { <span class="chip-recurso">@r</span> }
+                            </div>
+                        }
+                        else { <span>—</span> }
+                    </td>
+                    <td>
+                        <a asp-page="/Portafolio/Detalle" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary">Ver</a>
+                        <a asp-page="Edit" asp-route-id="@p.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a asp-page="Delete" asp-route-id="@p.Id" class="btn btn-sm btn-outline-danger">@(p.Activo ? "Desactivar" : "Activar")</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

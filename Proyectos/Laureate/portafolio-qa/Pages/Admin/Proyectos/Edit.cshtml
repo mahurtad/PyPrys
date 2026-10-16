@@ -1,0 +1,371 @@
+@page "{id:int}"
+@model PortafolioQA.Pages.Admin.Proyectos.EditModel
+@{
+    ViewData["Title"] = "Editar proyecto";
+    ViewData["Instituciones"] = Model.Instituciones;
+    ViewData["Sistemas"] = Model.Sistemas;
+    ViewData["SistemasSeleccionados"] = Model.SistemasSeleccionados;
+    ViewData["SquashProyectos"] = Model.SquashDisponibles;
+    ViewData["SquashPuedeManual"] = Model.PuedeManual;
+    ViewData["SquashError"] = Model.SquashError;
+    ViewData["QAAsignados"] = Model.QAAsignados;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h3 mb-0">Editar proyecto</h1>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" form="form-proyecto" class="btn btn-primary">Guardar</button>
+        <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" form="form-cancelar-proyecto" class="btn btn-outline-warning">@(Model.Proyecto.Estado == PortafolioQA.Models.EstadoProyecto.Cancelado ? "Reactivar" : "Cancelar proyecto")</button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <form method="post" id="form-proyecto">
+            <input type="hidden" asp-for="Proyecto.Id" />
+            <partial name="_Form" for="Proyecto" />
+        </form>
+    </div>
+</div>
+
+<form method="post" id="form-cancelar-proyecto" asp-page-handler="CancelarProyecto" asp-route-id="@Model.Proyecto.Id"
+      onsubmit="return confirm('@(Model.Proyecto.Estado == PortafolioQA.Models.EstadoProyecto.Cancelado ? "¿Reactivar este proyecto?" : "¿Cancelar este proyecto? Si está cerrado, se reabrirá y luego se cancelará.")');">
+</form>
+@if (Model.Proyecto.AvancePendienteConfirmar)
+{
+    <div class="alert alert-warning mt-3">Avance heredado: @Model.Proyecto.AvanceLegado %. Avance por confirmar: ingresa el avance de cada actividad y confirma.</div>
+    <form method="post" asp-page-handler="ConfirmarAvance" asp-route-id="@Model.Proyecto.Id">
+        @for (var i = 0; i < Model.Actividades.Count; i++)
+        {
+            <div class="mb-2">
+                <label for="confirmacion-@i">@Model.Actividades[i].Nombre</label>
+                <input type="hidden" name="confirmaciones[@i].Id" value="@Model.Actividades[i].Id" />
+                <input id="confirmacion-@i" name="confirmaciones[@i].Avance" type="number" min="0" max="100" step="0.01" required class="form-control" value="@Model.Actividades[i].Avance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+            </div>
+        }
+        <button type="submit" class="btn btn-primary">Confirmar avance de todas las actividades</button>
+    </form>
+}
+<hr class="my-4" />
+<div id="squash"></div>
+<div id="actividades" class="row">
+    <div class="col-12">
+        <h2 class="h5">Actividades del proyecto</h2>
+        <p class="text-muted small">Por defecto toman las fechas del proyecto. Las predeterminadas conservan su nombre. Si una actividad termina después del proyecto, la fecha fin del proyecto se extiende automáticamente. <strong>Los cambios en nombre, fechas, responsable y avance se guardan al modificar cada campo.</strong></p>
+
+        @if (TempData["Mensaje"] != null)
+        {
+            <div class="alert alert-success py-2">@TempData["Mensaje"]</div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger py-2">@TempData["Error"]</div>
+        }
+
+        @if (Model.Proyecto.Estado == PortafolioQA.Models.EstadoProyecto.Cerrado)
+        {
+            <div class="alert alert-secondary py-2 small">
+                Proyecto cerrado: las actividades y su responsable son historial.
+                @(Model.ActividadesBloqueadas ? "Solo un administrador puede corregirlas." : "Como administrador puedes corregirlas; cada cambio queda registrado.")
+            </div>
+        }
+
+        @if (Model.TieneSquash)
+        {
+            var nombreSquash = Model.SquashProyectos.FirstOrDefault(x => x.Id == Model.Proyecto.SquashProjectId)?.Nombre ?? $"proyecto {Model.Proyecto.SquashProjectId}";
+            <div class="alert alert-info py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <strong>Avance desde Squash TM.</strong> Vinculado a «@nombreSquash». Las actividades manuales no se usan mientras el proyecto esté vinculado;
+                    el avance es el promedio de los casos de Squash (ejecutado 100 %, en curso o fallido 50 %, sin ejecutar 0 %).
+                    <span class="d-block small text-muted">
+                        @(Model.Proyecto.SquashSincronizadoEn is null ? "Aún no sincronizado." : "Última sincronización: " + Model.Proyecto.SquashSincronizadoEn.Value.ToString("dd/MM/yyyy HH:mm") + ".")
+                        El detalle está en <a asp-page="/Portafolio/Detalle" asp-route-id="@Model.Proyecto.Id">Detalle del proyecto</a>.
+                    </span>
+                </div>
+                <form method="post" asp-page-handler="SincronizarSquash" asp-route-id="@Model.Proyecto.Id">
+                    <button type="submit" class="btn btn-sm btn-primary">Actualizar desde Squash</button>
+                </form>
+            </div>
+        }
+
+        @if (!Model.TieneSquash)
+        {
+        <fieldset disabled="@Model.ActividadesBloqueadas" class="border-0 p-0 m-0">
+        <form method="post" asp-page-handler="AgregarActividad" asp-route-id="@Model.Proyecto.Id" class="row g-2 mb-3">
+            <div class="col-md-5"><input name="actNombre" class="form-control" placeholder="Nombre de la actividad" maxlength="200" required /></div>
+            <div class="col-md-4">
+                <select name="actRecursoId" class="form-select" required="@(Model.RecursosProyecto.Count > 1)" disabled="@(Model.RecursosProyecto.Count == 0)">
+                    @if (Model.RecursosProyecto.Count == 0)
+                    {
+                        <option value="">Sin recursos asignados al proyecto</option>
+                    }
+                    else
+                    {
+                        @if (Model.RecursosProyecto.Count > 1)
+                        {
+                            <option value="">Recurso QA responsable</option>
+                        }
+                        @foreach (var r in Model.RecursosProyecto)
+                        {
+                            <option value="@r.Id">@r.NombreCompleto</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="w-100"></div>
+            <div class="col-md-3"><input name="actInicio" type="date" class="form-control" value="@Model.Proyecto.FechaInicio.ToString("yyyy-MM-dd")" required /></div>
+            <div class="col-md-3"><input name="actFin" type="date" class="form-control" value="@Model.Proyecto.FechaFin.ToString("yyyy-MM-dd")" required /></div>
+            <div class="col-md-2"><input name="actAvance" type="number" min="0" max="100" step="1" value="0" class="form-control" title="Avance %" placeholder="Avance %" /></div>
+            <div class="col-md-2"><button type="submit" class="btn btn-outline-primary w-100">Agregar</button></div>
+        </form>
+
+        @if (!Model.Actividades.Any())
+        {
+            <p class="text-muted">Este proyecto aún no tiene actividades.</p>
+        }
+        else
+        {
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+            <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Actividad</th><th>Recurso QA</th><th>Inicio</th><th>Fin</th><th style="width:110px">Avance %</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model.Actividades)
+                    {
+                        var cancelada = a.Estado == PortafolioQA.Models.EstadoActividad.Cancelada;
+                        var fueraDeRango = a.FechaInicio < Model.Proyecto.FechaInicio || a.FechaFin > Model.Proyecto.FechaFin;
+                        <tr class="@(cancelada ? "text-muted" : "")">
+                            <td>
+                                <form id="ed-@a.Id" method="post" asp-page-handler="EditarActividad" asp-route-id="@Model.Proyecto.Id" asp-route-actividadId="@a.Id"></form>
+                                @if (a.EsPredeterminada)
+                                {
+                                    <span>@a.Nombre</span> <span title="Predeterminada: no se puede borrar ni renombrar">🔒</span>
+                                    <input type="hidden" name="nombre" value="@a.Nombre" form="ed-@a.Id" />
+                                }
+                                else
+                                {
+                                    <input name="nombre" value="@a.Nombre" maxlength="200" class="form-control form-control-sm" aria-label="Nombre" form="ed-@a.Id" onchange="this.form.requestSubmit()" required />
+                                }
+                                @if (fueraDeRango) { <div class="small text-warning" title="Las fechas de la actividad exceden el periodo del proyecto">⚠ Fuera del periodo del proyecto</div> }
+                            </td>
+                            <td>
+                                @if (Model.RecursosProyecto.Count == 0)
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="RecursoActividad" asp-route-id="@Model.Proyecto.Id" asp-route-actividadId="@a.Id">
+                                        <select name="recursoId" style="min-width:150px" class="form-select form-select-sm @(a.RecursoQAId == null ? "border-warning" : "")" onchange="this.form.submit()">
+                                            @if (a.EsPredeterminada || a.RecursoQAId == null)
+                                            {
+                                                <option value="" selected="@(a.RecursoQAId == null)">⚠ Sin asignar</option>
+                                            }
+                                            @foreach (var r in Model.RecursosProyecto)
+                                            {
+                                                <option value="@r.Id" selected="@(r.Id == a.RecursoQAId)">@r.NombreCompleto</option>
+                                            }
+                                        </select>
+                                    </form>
+                                }
+                            </td>
+                            <td><input name="inicio" type="date" value="@a.FechaInicio.ToString("yyyy-MM-dd")" class="form-control form-control-sm" aria-label="Inicio" form="ed-@a.Id" onchange="this.form.requestSubmit()" required /></td>
+                            <td><input name="fin" type="date" value="@a.FechaFin.ToString("yyyy-MM-dd")" class="form-control form-control-sm" aria-label="Fin" form="ed-@a.Id" onchange="this.form.requestSubmit()" required /></td>
+                            <td>
+                                <form method="post" asp-page-handler="AvanceActividad" asp-route-id="@Model.Proyecto.Id" asp-route-actividadId="@a.Id">
+                                    <div class="input-group input-group-sm">
+                                        <input name="avance" type="number" min="0" max="100" step="any" class="form-control" value="@a.Avance.ToString("0.##", inv)" onchange="this.form.submit()" />
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </form>
+                            </td>
+                            <td><span class="badge @a.Estado.BadgeClase()">@a.Estado.Texto()</span></td>
+                            <td class="text-nowrap">
+                                <form method="post" asp-page-handler="CancelarActividad" asp-route-id="@Model.Proyecto.Id" asp-route-actividadId="@a.Id" class="d-inline"
+                                      onsubmit="return confirm('@(cancelada ? "¿Reactivar" : "¿Anular") esta actividad? El avance del proyecto se recalculará.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="@(cancelada ? "Vuelve a contar en el avance del proyecto" : "Deja de contar en el avance del proyecto")">@(cancelada ? "Reactivar" : "Anular")</button>
+                                </form>
+                                @if (!a.EsPredeterminada)
+                                {
+                                <form method="post" asp-page-handler="EliminarActividad" asp-route-id="@Model.Proyecto.Id" asp-route-actividadId="@a.Id" class="d-inline" onsubmit="return confirm('¿Eliminar esta actividad?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                                </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        }
+        </fieldset>
+        }
+
+        @if (Model.Auditoria.Any())
+        {
+            <h3 class="h6 mt-4">Registro de cambios en actividades</h3>
+            <table class="table table-sm small">
+                <thead><tr><th>Fecha</th><th>Usuario</th><th>Actividad</th><th>Acción</th><th>Detalle</th></tr></thead>
+                <tbody>
+                    @foreach (var au in Model.Auditoria)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@au.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@au.Usuario</td>
+                            <td>@au.Actividad</td>
+                            <td>@au.Accion @if (au.ProyectoCerrado) { <span class="badge bg-warning text-dark">Tras el cierre</span> }</td>
+                            <td>@au.Detalle</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<hr class="my-4" />
+<div id="acuerdos" class="row">
+    <div class="col-12">
+        <h2 class="h5">Acuerdos del proyecto</h2>
+        <p class="text-muted small">El responsable puede ser un recurso QA asignado al proyecto o cualquier otra persona. Un acuerdo puede vincularse a una o varias actividades. «Vencido» se calcula solo: fecha límite pasada y acuerdo aún Pendiente o En curso.</p>
+
+        @{
+            string ValorResponsable(PortafolioQA.Models.Acuerdo x) => x.RecursoQAId is not null ? x.RecursoQAId.ToString()! : (x.ResponsableNombre is not null ? "otro" : "");
+            var sugerencias = new[] { Model.Proyecto.PM, Model.Proyecto.Lider }.Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
+        }
+        <datalist id="sugerencias-responsable">
+            @foreach (var n in sugerencias) { <option value="@n"></option> }
+        </datalist>
+
+        <form method="post" asp-page-handler="AgregarAcuerdo" asp-route-id="@Model.Proyecto.Id" class="row g-2 mb-3">
+            <div class="col-md-6"><input name="acuTitulo" class="form-control" placeholder="Título del acuerdo" maxlength="200" required /></div>
+            <div class="col-md-3">
+                <select name="acuResponsable" class="form-select acu-responsable" required>
+                    <option value="">Responsable</option>
+                    @if (Model.RecursosProyecto.Any())
+                    {
+                        <optgroup label="Recursos QA del proyecto">
+                            @foreach (var r in Model.RecursosProyecto) { <option value="@r.Id">@r.NombreCompleto</option> }
+                        </optgroup>
+                    }
+                    <option value="otro">Otra persona (no QA)…</option>
+                </select>
+            </div>
+            <div class="col-md-3"><input name="acuResponsableOtro" class="form-control acu-otro" list="sugerencias-responsable" placeholder="Nombre del responsable" maxlength="150" hidden /></div>
+            <div class="w-100"></div>
+            <div class="col-md-3"><label class="form-label small mb-0">Fecha del acuerdo</label><input name="acuFechaAcuerdo" type="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" required /></div>
+            <div class="col-md-3"><label class="form-label small mb-0">Fecha límite</label><input name="acuFechaLimite" type="date" class="form-control" value="@DateTime.Today.AddDays(7).ToString("yyyy-MM-dd")" required /></div>
+            <div class="col-md-3"><label class="form-label small mb-0">Estado</label>
+                <select name="acuEstado" class="form-select">
+                    @foreach (var e in Enum.GetValues<PortafolioQA.Models.EstadoAcuerdo>()) { <option value="@((int)e)">@e.Texto()</option> }
+                </select>
+            </div>
+            @if (Model.Actividades.Any())
+            {
+                <div class="col-12">
+                    <label class="form-label small mb-0">Actividades vinculadas (opcional)</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        @foreach (var a in Model.Actividades)
+                        {
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="acuActividades" value="@a.Id" id="nuevo-act-@a.Id" /><label class="form-check-label small" for="nuevo-act-@a.Id">@a.Nombre</label></div>
+                        }
+                    </div>
+                </div>
+            }
+            <div class="col-12"><button type="submit" class="btn btn-outline-primary">Agregar acuerdo</button></div>
+        </form>
+
+        @if (!Model.Acuerdos.Any())
+        {
+            <p class="text-muted">Este proyecto aún no tiene acuerdos.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>ID</th><th>Título</th><th>Responsable</th><th>Fecha acuerdo</th><th>Fecha límite</th><th>Estado</th><th>Actividades</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var x in Model.Acuerdos)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@x.Codigo</td>
+                            <td>@x.Titulo</td>
+                            <td>@x.Responsable</td>
+                            <td class="text-nowrap">@x.FechaAcuerdo.ToString("dd/MM/yyyy")</td>
+                            <td class="text-nowrap">@x.FechaLimite.ToString("dd/MM/yyyy") @if (x.Vencido) { <span class="badge bg-danger">Vencido</span> }</td>
+                            <td>
+                                <form method="post" asp-page-handler="EstadoAcuerdo" asp-route-id="@Model.Proyecto.Id" asp-route-acuerdoId="@x.Id">
+                                    <select name="estado" class="form-select form-select-sm" style="min-width:110px" aria-label="Estado" onchange="this.form.submit()">
+                                        @foreach (var e in Enum.GetValues<PortafolioQA.Models.EstadoAcuerdo>()) { <option value="@((int)e)" selected="@(e == x.Estado)">@e.Texto()</option> }
+                                    </select>
+                                </form>
+                            </td>
+                            <td><span class="badge bg-info text-dark">@x.Actividades.Count</span></td>
+                            <td class="text-nowrap">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#acu-edit-@x.Id">Editar</button>
+                                <form method="post" asp-page-handler="EliminarAcuerdo" asp-route-id="@Model.Proyecto.Id" asp-route-acuerdoId="@x.Id" class="d-inline" onsubmit="return confirm('¿Eliminar este acuerdo? Las actividades no se eliminan.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="acu-edit-@x.Id">
+                            <td colspan="8" class="bg-light">
+                                <form method="post" asp-page-handler="EditarAcuerdo" asp-route-id="@Model.Proyecto.Id" asp-route-acuerdoId="@x.Id" class="row g-2">
+                                    <div class="col-md-6"><input name="acuTitulo" class="form-control form-control-sm" value="@x.Titulo" maxlength="200" required /></div>
+                                    <div class="col-md-3">
+                                        <select name="acuResponsable" class="form-select form-select-sm acu-responsable" required>
+                                            @{
+                                                var valor = ValorResponsable(x);
+                                                var enLista = x.RecursoQAId is not null && Model.RecursosProyecto.Any(r => r.Id == x.RecursoQAId);
+                                            }
+                                            @if (x.RecursoQAId is not null && !enLista) { <option value="@x.RecursoQAId" selected>@x.Responsable (ya no asignado)</option> }
+                                            @if (Model.RecursosProyecto.Any())
+                                            {
+                                                <optgroup label="Recursos QA del proyecto">
+                                                    @foreach (var r in Model.RecursosProyecto) { <option value="@r.Id" selected="@(valor == r.Id.ToString())">@r.NombreCompleto</option> }
+                                                </optgroup>
+                                            }
+                                            <option value="otro" selected="@(valor == "otro")">Otra persona (no QA)…</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3"><input name="acuResponsableOtro" class="form-control form-control-sm acu-otro" list="sugerencias-responsable" value="@x.ResponsableNombre" maxlength="150" hidden="@(valor != "otro")" /></div>
+                                    <div class="col-md-3"><input name="acuFechaAcuerdo" type="date" class="form-control form-control-sm" value="@x.FechaAcuerdo.ToString("yyyy-MM-dd")" required /></div>
+                                    <div class="col-md-3"><input name="acuFechaLimite" type="date" class="form-control form-control-sm" value="@x.FechaLimite.ToString("yyyy-MM-dd")" required /></div>
+                                    <div class="col-md-3">
+                                        <select name="acuEstado" class="form-select form-select-sm">
+                                            @foreach (var e in Enum.GetValues<PortafolioQA.Models.EstadoAcuerdo>()) { <option value="@((int)e)" selected="@(e == x.Estado)">@e.Texto()</option> }
+                                        </select>
+                                    </div>
+                                    @if (Model.Actividades.Any())
+                                    {
+                                        <div class="col-12 d-flex flex-wrap gap-3">
+                                            @foreach (var a in Model.Actividades)
+                                            {
+                                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acuActividades" value="@a.Id" id="acu-@x.Id-act-@a.Id" checked="@x.Actividades.Any(v => v.ActividadId == a.Id)" /><label class="form-check-label small" for="acu-@x.Id-act-@a.Id">@a.Nombre</label></div>
+                                            }
+                                        </div>
+                                    }
+                                    <div class="col-12"><button type="submit" class="btn btn-sm btn-primary">Guardar cambios</button></div>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Muestra el campo de texto solo cuando el responsable no es de QA ("Otra persona").
+        document.querySelectorAll('.acu-responsable').forEach(function (sel) {
+            var otro = sel.closest('form').querySelector('.acu-otro');
+            var alternar = function () { var es = sel.value === 'otro'; otro.hidden = !es; otro.required = es; };
+            sel.addEventListener('change', alternar); alternar();
+        });
+    </script>
+}

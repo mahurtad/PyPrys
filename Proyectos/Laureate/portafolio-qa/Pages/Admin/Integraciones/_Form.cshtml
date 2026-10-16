@@ -1,0 +1,31 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model PortafolioQA.Models.AsociacionExterna
+@{
+    var proyectos = (List<PortafolioQA.Models.Proyecto>)ViewData["Proyectos"]!;
+}
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+<div class="mb-3">
+    <label asp-for="ProyectoId" class="form-label"></label>
+    <select asp-for="ProyectoId" class="form-select" asp-items="@(new SelectList(proyectos, "Id", "Nombre"))">
+        <option value="">Selecciona un proyecto</option>
+    </select>
+    <span asp-validation-for="ProyectoId" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Herramienta" class="form-label"></label>
+    <select asp-for="Herramienta" class="form-select" asp-items="Html.GetEnumSelectList<PortafolioQA.Models.HerramientaIntegracion>()"></select>
+</div>
+
+<div class="mb-3">
+    <label asp-for="IdentificadorExterno" class="form-label"></label>
+    <input asp-for="IdentificadorExterno" class="form-control" placeholder="Bugzilla: nombre exacto del producto; Squash: campaign:ID o iteration:ID" />
+    <span asp-validation-for="IdentificadorExterno" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Estado" class="form-label"></label>
+    <select asp-for="Estado" class="form-select" asp-items="Html.GetEnumSelectList<PortafolioQA.Models.EstadoSincronizacion>()"></select>
+</div>

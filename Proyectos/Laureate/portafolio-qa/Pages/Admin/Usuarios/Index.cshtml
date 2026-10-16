@@ -1,0 +1,45 @@
+@page
+@model PortafolioQA.Pages.Admin.Usuarios.IndexModel
+@{
+    ViewData["Title"] = "Usuarios";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Usuarios de la aplicación</h1>
+    <div class="d-flex gap-2">
+        <a asp-page="Importar" class="btn btn-outline-primary">Importar CSV</a>
+        <a asp-page="Importar" asp-page-handler="Plantilla" class="btn btn-outline-secondary">Descargar plantilla</a>
+        <a asp-page="Create" class="btn btn-primary">Nuevo usuario</a>
+    </div>
+</div>
+
+<p class="text-muted">
+    <strong>Administrador</strong>: todo, incluida la gestión de usuarios. <strong>Editor</strong>: consulta y modifica datos.
+    <strong>Lector</strong>: solo consulta (portafolio y planificación). Los usuarios no se eliminan: se desactivan.
+</p>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+
+<table class="table table-striped align-middle">
+    <thead><tr><th>Nombres</th><th>Apellidos</th><th>Correo</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var u in Model.Filas)
+        {
+            <tr>
+                <td>@u.Nombres</td>
+                <td>@u.Apellidos</td>
+                <td>@u.Correo</td>
+                <td>@u.Rol</td>
+                <td>
+                    @if (!u.Activo) { <span class="badge bg-secondary">Desactivado</span> }
+                    else if (u.Bloqueado) { <span class="badge bg-warning text-dark">Bloqueado temporalmente</span> }
+                    else { <span class="badge bg-success">Activo</span> }
+                </td>
+                <td><a asp-page="Edit" asp-route-id="@u.Id" class="btn btn-sm btn-outline-secondary">Editar</a></td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,104 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+/* ===== Etapa 2: Gantt, calendario y capacidad ===== */
+.gantt-scroll { overflow-x: auto; border: 1px solid #dee2e6; border-radius: .375rem; background: #fff; }
+.gantt { min-width: 1000px; }
+.gantt-fila { display: flex; border-bottom: 1px solid #eef0f2; min-height: 2.2rem; }
+.gantt-cabecera { background: #f8f9fa; font-weight: 600; position: sticky; top: 0; z-index: 3; }
+.gantt-etiqueta { flex: 0 0 260px; padding: .25rem .5rem; border-right: 1px solid #dee2e6; line-height: 1.15;
+                  overflow: hidden; position: sticky; left: 0; z-index: 2; background: #fff; }
+.gantt-cabecera .gantt-etiqueta { background: #f8f9fa; }
+.gantt-principal .gantt-etiqueta { font-weight: 600; }
+.gantt-detalle .gantt-etiqueta { padding-left: 1.5rem; font-size: .9em; }
+.gantt-linea { position: relative; flex: 1 1 auto; min-height: 2.2rem; }
+.gantt-mes { position: absolute; top: 0; bottom: 0; padding: .25rem .4rem; border-left: 1px solid #ced4da;
+             font-size: .8rem; text-transform: capitalize; overflow: hidden; white-space: nowrap; }
+.gantt-division { position: absolute; top: 0; bottom: 0; border-left: 1px solid #eef0f2; }
+.gantt-hoy { position: absolute; top: 0; bottom: 0; border-left: 2px solid #dc3545; z-index: 1; }
+.gantt-barra { position: absolute; top: .45rem; height: 1.3rem; border-radius: .25rem; overflow: hidden;
+               font-size: .72rem; line-height: 1.3rem; color: #fff; white-space: nowrap; }
+.gantt-barra-texto { position: relative; padding: 0 .3rem; }
+.gantt-proyecto { background: #9db7d5; color: #1d3557; }
+.gantt-avance { position: absolute; top: 0; bottom: 0; left: 0; background: #1f5aa6; opacity: .85; }
+.gantt-proyecto .gantt-barra-texto { color: #fff; text-shadow: 0 0 2px #000; }
+.gantt-asignacion { background: #2a9d8f; }
+.gantt-franja { position: absolute; left: 0; right: 0; top: .1rem; height: .8rem; }
+.gantt-franja ~ .gantt-barra { top: 1.05rem; }
+.gantt-seg { position: absolute; top: 0; height: .8rem; font-size: .6rem; line-height: .8rem; text-align: center;
+             overflow: hidden; white-space: nowrap; color: #fff; }
+.seg-libre { background: #cfe8d5; color: #1b4332; }
+.seg-parcial { background: #6fb7d9; }
+.seg-completo { background: #2d9a5b; }
+.seg-sobreasignado { background: #dc3545; }
+.seg-ausente { background: #8e7cc3; }
+.seg-nolaborable { background: repeating-linear-gradient(45deg, #e9ecef, #e9ecef 3px, #f8f9fa 3px, #f8f9fa 6px); }
+.leyenda { display: inline-block; width: .9rem; height: .7rem; border-radius: 2px; vertical-align: middle; margin: 0 .2rem 0 .8rem; }
+.hito-rombo { display: inline-block; width: .7rem; height: .7rem; background: #f4a261; border: 1px solid #b5651d;
+              transform: rotate(45deg); vertical-align: middle; margin: 0 .2rem; }
+.hito-posicion { position: absolute; top: .75rem; margin: 0 0 0 -.35rem; z-index: 2; }
+
+.calendario { border: 1px solid #dee2e6; border-radius: .375rem; background: #fff; }
+.cal-cabecera { display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa; font-weight: 600;
+                text-align: center; border-bottom: 1px solid #dee2e6; padding: .3rem 0; }
+.cal-semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid #dee2e6;
+              min-height: 5.5rem; position: relative; }
+.cal-dia { border-right: 1px solid #eef0f2; }
+.cal-nolaborable { background: #f4f5f7; }
+.cal-fuera { opacity: .55; }
+.cal-hoy { box-shadow: inset 0 0 0 2px #dc3545; }
+.cal-contenido { padding: .15rem .3rem; z-index: 1; pointer-events: none; font-size: .8rem; }
+.cal-numero { font-weight: 600; display: block; }
+.cal-feriado-texto { display: block; color: #6c757d; font-size: .7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-hito { display: block; font-size: .7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: auto; }
+.cal-barra { z-index: 1; margin: 1px 2px; padding: 0 .35rem; font-size: .72rem; line-height: 1.4rem; color: #fff;
+             border-radius: .25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-asignacion { background: #2a9d8f; }
+.cal-ausencia { background: #8e7cc3; }
+.cal-barra.cont-izq { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+.cal-barra.cont-der { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+.leyenda.cal-feriado { background: #f4f5f7; border: 1px solid #ced4da; }
+
+/* Tarjetas compactas del portafolio */
+.card-compacta { font-size: .8rem; }
+.card-compacta .card-body { padding: .45rem .65rem; }
+.card-compacta .card-title { font-size: .95rem; }
+.card-compacta .badge { font-size: .68rem; }
+.card-compacta .btn { font-size: .75rem; }
+.card-compacta .progress-bar { font-size: .68rem; }
+.card-compacta .text-truncate-2 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.card-compacta .card-body { display: flex; flex-direction: column; overflow: hidden; }
+
+/* Chips de Recursos QA */
+.chips-recursos { display: flex; flex-wrap: wrap; gap: .25rem; }
+.chip-recurso {
+    display: inline-block;
+    padding: .15rem .6rem;
+    font-size: .8rem;
+    line-height: 1.3;
+    color: #343a40;
+    background: #f1f3f5;
+    border: 1px solid #e3e6ea;
+    border-radius: 999px;
+    white-space: nowrap;
+}

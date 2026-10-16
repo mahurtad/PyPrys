@@ -1,0 +1,19 @@
+@page "{id:int}"
+@model PortafolioQA.Pages.Admin.RecursosQA.DeleteModel
+@{
+    ViewData["Title"] = Model.Recurso.Activo ? "Desactivar recurso QA" : "Activar recurso QA";
+}
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+
+<div class="alert alert-warning">
+    Los recursos QA no se eliminan para conservar el historial de asignaciones.
+</div>
+
+<p>¿Confirmas @((Model.Recurso.Activo ? "desactivar" : "activar")) a <strong>@Model.Recurso.NombreCompleto</strong>?</p>
+
+<form method="post">
+    <input type="hidden" asp-for="Recurso.Id" />
+    <button type="submit" class="btn btn-danger">Confirmar</button>
+    <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+</form>

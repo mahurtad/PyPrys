@@ -1,0 +1,14 @@
+use strict;
+use warnings;
+use lib '/var/www/html/bugzilla';
+chdir '/var/www/html/bugzilla' or die $!;
+require Bugzilla; require Bugzilla::Constants; require Bugzilla::User; require JSON::XS;
+Bugzilla->usage_mode(Bugzilla::Constants::USAGE_MODE_CMDLINE());
+Bugzilla->set_user(Bugzilla::User->new({name => $ENV{BUGZILLA_ADMIN_EMAIL}}));
+my $login='squash-connector@portafolio.local';
+die 'La cuenta ya existe; no se cambio su clave' if Bugzilla::User->new({name => $login});
+open my $r, '<', '/dev/urandom' or die $!; read($r, my $bytes, 24)==24 or die 'entropy';
+my $password=unpack('H*', $bytes);
+my $u=Bugzilla::User->create({login_name=>$login, realname=>'Conector Squash TM', cryptpassword=>$password});
+$u->set_groups({add=>['editbugs','canconfirm']}); $u->update();
+print JSON::XS::encode_json({username=>$login,password=>$password});

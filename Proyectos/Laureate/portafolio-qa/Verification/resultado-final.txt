@@ -1,0 +1,12 @@
+Conteo previo (copia real): estado 2: 3; estado 3: 4
+PASS 1: Alta con 3 actividades 30/50/20; fechas inclusivas y rangos de 1–100 días; se ignora avance/estado recibido
+PASS 2: Avance ponderado 30 % y 55 %; canceladas excluidas; estado derivado
+PASS 3: Actividad heredada En curso al 0 % implica En certificación
+PASS 4: 100 % cierra, crea foto y recorta asignaciones
+PASS 5: Extra de peso 10 reabre y restaura asignación/cierre histórico
+PASS 6: Borrado/renombrado rechazados en handlers y persistencia; peso editable y entrada inválida rechazada
+PASS 7: Cancelar/reactivar conserva avance
+PASS 8: Importación CSV real crea tres actividades en cada proyecto
+Conteo posterior (solo proyectos originales): EnCertificacion: 5; Cerrado: 2
+PASS 9: Backfill de copia real; fixtures de los 4 estados; legado preservado hasta confirmación completa
+9/9 escenarios aprobados. Base original intacta.

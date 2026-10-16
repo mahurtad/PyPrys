@@ -1,0 +1,20 @@
+use strict;
+use warnings;
+use lib '/var/www/html/bugzilla';
+chdir '/var/www/html/bugzilla' or die $!;
+require Bugzilla;
+require Bugzilla::Constants;
+require Bugzilla::User;
+require Bugzilla::User::APIKey;
+Bugzilla->usage_mode(Bugzilla::Constants::USAGE_MODE_CMDLINE());
+my $admin = Bugzilla::User->new({name => $ENV{BUGZILLA_ADMIN_EMAIL}});
+die 'Administrador no encontrado' unless $admin;
+Bugzilla->set_user($admin);
+open my $random, '<', '/dev/urandom' or die $!;
+read($random, my $random_bytes, 24) == 24 or die 'Entropy unavailable';
+my $password = unpack('H*', $random_bytes);
+my $user = Bugzilla::User->new({name => 'portafolio-api@portafolio.local'});
+$user ||= Bugzilla::User->create({login_name => 'portafolio-api@portafolio.local', realname => 'Portafolio QA lectura', cryptpassword => $password});
+my $key = Bugzilla::User::APIKey->create({user_id => $user->id, description => 'Portafolio QA local'});
+print $key->api_key;
+

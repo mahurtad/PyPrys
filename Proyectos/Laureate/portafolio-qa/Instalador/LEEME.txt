@@ -1,0 +1,43 @@
+﻿PORTAFOLIO QA - INSTALADOR PARA IIS
+===================================
+OPCIÓN A (recomendada): ejecute PortafolioQA-Setup.exe en el servidor. Es un asistente gráfico: pide sitio, certificado,
+administrador inicial y Squash TM, muestra un resumen y luego instala.
+El instalador NO toca SQL Server: no crea bases, logins ni usuarios ni aplica migraciones.
+Al terminar, la aplicación queda instalada pero SIN ACTIVAR hasta configurar la conexión a la base de datos.
+El registro queda en C:\ProgramData\PortafolioQA\instalacion.log (sin contraseñas).
+
+OPCIÓN B (consola):
+1. Copie esta carpeta (o descomprima el .zip) en el servidor Windows.
+2. Ejecute Instalar.cmd (pedirá permisos de administrador). Pide los mismos datos que el asistente gráfico.
+
+CONFIGURAR LA CONEXIÓN A LA BASE DE DATOS (después de instalar)
+1. Abra https://<servidor>/Setup (desde el propio servidor basta https://localhost/Setup).
+2. Escriba el código de configuración: archivo C:\ProgramData\PortafolioQA\codigo-configuracion.txt (solo lo leen los
+   administradores del servidor; se bloquea tras 5 intentos fallidos y se borra al activar).
+3. Indique servidor, puerto (opcional), base y autenticación:
+   - Windows: la aplicación entra con la cuenta con la que corre su sitio IIS. La pantalla muestra esa cuenta.
+   - SQL Server: usuario y contraseña (recomendado si SQL está en otro equipo).
+   La pantalla sugiere la autenticación según el servidor sea local o remoto.
+4. "Probar conexión y permisos" verifica conexión, base, lectura, escritura y esquema. Si falta acceso, genera un script T-SQL
+   (sin contraseñas) para que lo ejecute el administrador de la base; el asistente nunca crea logins por sí mismo.
+5. Si el esquema falta, "Aplicar migraciones" (si la cuenta puede modificar tablas) o "Descargar script de esquema" para el DBA.
+6. "Guardar y activar": se valida todo de nuevo, se guarda la conexión cifrada y la aplicación se reinicia.
+
+RECONFIGURAR DESPUÉS
+Un Administrador entra a Administración > Conexión a la base de datos (confirma su contraseña para guardar).
+Los cambios quedan en C:\ProgramData\PortafolioQA\auditoria-configuracion.log (quién, cuándo y qué; nunca contraseñas).
+Esa configuración tiene prioridad sobre la variable de entorno del pool. Para volver a la anterior, borre
+C:\ProgramData\PortafolioQA\conexion.dat (queda una copia conexion.dat.bak de la versión previa).
+Las instalaciones existentes con la conexión en la variable ConnectionStrings__PortafolioQAContext del pool siguen funcionando
+sin cambios hasta que alguien guarde una conexión nueva desde el asistente.
+
+ACTUALIZAR a una versión nueva: ejecute de nuevo el instalador y elija "Actualizar".
+No toca la configuración, las variables de entorno ni la base de datos; solo reemplaza archivos.
+Si la versión nueva trae migraciones, la aplicación queda en mantenimiento y un Administrador las aplica desde
+Administración > Conexión a la base de datos (o ejecuta el script de esquema). El paquete .zip incluye db\portafolio-qa.sql.
+
+REQUISITOS (el instalador los valida, no los instala)
+- Windows Server con el rol Web Server (IIS) y las Herramientas de scripting de IIS.
+- .NET 8 Hosting Bundle (https://dotnet.microsoft.com/download/dotnet/8.0).
+- Una instancia de SQL Server alcanzable y una base (puede crearla el administrador de la base con el script que genera el asistente).
+- Un certificado HTTPS (el instalador puede crear uno autofirmado solo para pruebas).

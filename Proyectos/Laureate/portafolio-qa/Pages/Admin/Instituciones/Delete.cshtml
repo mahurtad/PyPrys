@@ -1,0 +1,20 @@
+@page "{id:int}"
+@model PortafolioQA.Pages.Admin.Instituciones.DeleteModel
+@{
+    ViewData["Title"] = Model.Institucion.Activo ? "Desactivar institución" : "Activar institución";
+}
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+
+<div class="alert alert-warning">
+    Las instituciones no se eliminan para conservar el historial de proyectos y sistemas asociados.
+    Al desactivarla dejará de estar disponible en los selectores y filtros, pero sus datos existentes se conservan.
+</div>
+
+<p>¿Confirmas @((Model.Institucion.Activo ? "desactivar" : "activar")) <strong>@Model.Institucion.Nombre</strong>?</p>
+
+<form method="post">
+    <input type="hidden" asp-for="Institucion.Id" />
+    <button type="submit" class="btn btn-danger">Confirmar</button>
+    <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+</form>

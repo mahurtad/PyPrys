@@ -1,0 +1,88 @@
+@page
+@model PortafolioQA.Pages.Planificacion.CalendarioModel
+@{
+    ViewData["Title"] = "Calendario";
+    var nombresDias = new[] { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" };
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+    <h1 class="h3 mb-0 text-capitalize">Calendario · @Model.TituloMes</h1>
+    <div class="btn-group">
+        <a class="btn btn-sm btn-outline-secondary" asp-page="Calendario" asp-route-mes="@Model.MesAnterior" asp-route-recursoId="@Model.RecursoId" asp-route-proyectoId="@Model.ProyectoId">&laquo; Anterior</a>
+        <a class="btn btn-sm btn-outline-secondary" asp-page="Calendario" asp-route-recursoId="@Model.RecursoId" asp-route-proyectoId="@Model.ProyectoId">Hoy</a>
+        <a class="btn btn-sm btn-outline-secondary" asp-page="Calendario" asp-route-mes="@Model.MesSiguiente" asp-route-recursoId="@Model.RecursoId" asp-route-proyectoId="@Model.ProyectoId">Siguiente &raquo;</a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <input type="hidden" name="mes" value="@Model.Mes.ToString("yyyy-MM")" />
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="recursoId">Recurso QA</label>
+        <select id="recursoId" name="recursoId" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            @foreach (var r in Model.Recursos)
+            {
+                <option value="@r.Id" selected="@(Model.RecursoId == r.Id)">@r.NombreCompleto</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="proyectoId">Proyecto</label>
+        <select id="proyectoId" name="proyectoId" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            @foreach (var p in Model.Proyectos)
+            {
+                <option value="@p.Id" selected="@(Model.ProyectoId == p.Id)">@p.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Filtrar</button></div>
+</form>
+
+<div class="small text-muted mb-2">
+    <span class="leyenda cal-asignacion"></span> Periodo de asignación
+    <span class="leyenda cal-ausencia"></span> Ausencia
+    <span class="hito-rombo"></span> Hito
+    <span class="leyenda cal-feriado"></span> Feriado / fin de semana
+</div>
+
+@if (Model.TotalEventos == 0)
+{
+    <div class="alert alert-info py-2">No hay asignaciones, ausencias ni hitos en este mes con los filtros seleccionados.</div>
+}
+
+<div class="calendario">
+    <div class="cal-cabecera">
+        @foreach (var n in nombresDias)
+        {
+            <div>@n</div>
+        }
+    </div>
+    @foreach (var semana in Model.Semanas)
+    {
+        <div class="cal-semana" style="grid-template-rows: auto@(semana.Carriles > 0 ? " repeat(" + semana.Carriles + ", 1.5rem)" : "")">
+            @foreach (var (dia, i) in semana.Dias.Select((d, i) => (d, i)))
+            {
+                <div class="cal-dia @(dia.EnMes ? "" : "cal-fuera") @(dia.NoLaborable ? "cal-nolaborable" : "") @(dia.EsHoy ? "cal-hoy" : "")"
+                     style="grid-column:@(i + 1);grid-row:1 / span @(semana.Carriles + 1)"></div>
+                <div class="cal-contenido @(dia.EnMes ? "" : "cal-fuera")" style="grid-column:@(i + 1);grid-row:1">
+                    <span class="cal-numero">@dia.Fecha.Day</span>
+                    @if (dia.Feriado != null)
+                    {
+                        <span class="cal-feriado-texto" title="@dia.Feriado">@dia.Feriado</span>
+                    }
+                    @foreach (var h in dia.Hitos)
+                    {
+                        <span class="cal-hito" title="@h"><span class="hito-rombo"></span> @h</span>
+                    }
+                </div>
+            }
+            @foreach (var b in semana.Barras)
+            {
+                <div class="cal-barra @b.Clase @(b.ContinuaIzquierda ? "cont-izq" : "") @(b.ContinuaDerecha ? "cont-der" : "")"
+                     style="grid-column:@b.ColInicio / @(b.ColFin + 1);grid-row:@(b.Carril + 2)"
+                     title="@b.Titulo">@b.Texto</div>
+            }
+        </div>
+    }
+</div>

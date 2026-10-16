@@ -1,0 +1,40 @@
+@model PortafolioQA.Models.RecursoQA
+@{
+    var usuarios = (List<PortafolioQA.Models.UsuarioApp>)ViewData["Usuarios"]!;
+}
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+<div class="mb-3">
+    <label asp-for="UsuarioId" class="form-label">Usuario registrado</label>
+    <select asp-for="UsuarioId" class="form-select">
+        <option value="">Selecciona un usuario</option>
+        @foreach (var u in usuarios)
+        {
+            <option value="@u.Id" selected="@(u.Id == Model.UsuarioId)">@u.Nombres @u.Apellidos — @u.Email</option>
+        }
+    </select>
+    <div class="form-text">Los nombres, apellidos y correo se toman del usuario. Si no aparece, créalo primero en Administración → Usuarios.</div>
+    <span asp-validation-for="UsuarioId" class="text-danger"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="SquashLogin" class="form-label"></label>
+    <input asp-for="SquashLogin" class="form-control" maxlength="100" placeholder="Si lo dejas vacío se usa el correo" />
+    <div class="form-text">Login de esta persona en Squash TM. Vincula los casos que Squash le asigna con este recurso.</div>
+    <span asp-validation-for="SquashLogin" class="text-danger"></span>
+</div>
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="Equipo" class="form-label"></label>
+        <select asp-for="Equipo" class="form-select" asp-items="Html.GetEnumSelectList<PortafolioQA.Models.EquipoQA>()"></select>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="CapacidadDisponible" class="form-label"></label>
+        <input asp-for="CapacidadDisponible" class="form-control" type="number" step="0.01" min="0" max="100" />
+        <span asp-validation-for="CapacidadDisponible" class="text-danger"></span>
+    </div>
+</div>
+<div class="form-check mb-3">
+    <input asp-for="Activo" class="form-check-input" />
+    <label asp-for="Activo" class="form-check-label"></label>
+</div>

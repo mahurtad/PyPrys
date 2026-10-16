@@ -1,0 +1,43 @@
+@page
+@model PortafolioQA.Pages.Admin.Sistemas.CreateModel
+@{
+    ViewData["Title"] = "Nuevo sistema";
+}
+
+<h1 class="h3 mb-3">Nuevo sistema / periférico</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="mb-3">
+                <label asp-for="Sistema.Nombre" class="form-label"></label>
+                <input asp-for="Sistema.Nombre" class="form-control" />
+                <span asp-validation-for="Sistema.Nombre" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Instituciones relacionadas</label>
+                @if (!Model.Instituciones.Any())
+                {
+                    <p class="text-muted">No hay instituciones activas registradas.</p>
+                }
+                else
+                {
+                    @foreach (var i in Model.Instituciones)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="InstitucionesSeleccionadas" value="@i.Id" id="inst-@i.Id" />
+                            <label class="form-check-label" for="inst-@i.Id">@i.Nombre</label>
+                        </div>
+                    }
+                }
+            </div>
+            <div class="form-check mb-3">
+                <input asp-for="Sistema.Activo" class="form-check-input" />
+                <label asp-for="Sistema.Activo" class="form-check-label"></label>
+            </div>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a asp-page="Index" class="btn btn-outline-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
