@@ -938,6 +938,36 @@ namespace PortafolioQA.Migrations
                     b.ToTable("SquashIteraciones");
                 });
 
+            modelBuilder.Entity("PortafolioQA.Models.SquashModulo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("SquashId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SquashIteracionId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Vigente")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SquashIteracionId", "SquashId")
+                        .IsUnique();
+
+                    b.ToTable("SquashModulos");
+                });
+
             modelBuilder.Entity("PortafolioQA.Models.UsuarioApp", b =>
                 {
                     b.Property<string>("Id")
@@ -1096,6 +1126,21 @@ namespace PortafolioQA.Migrations
                         .IsUnique();
 
                     b.ToTable("VinculosBugzilla");
+                });
+
+            modelBuilder.Entity("SquashModuloCaso", b =>
+                {
+                    b.Property<int>("CasoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ModuloId")
+                        .HasColumnType("int");
+
+                    b.HasKey("CasoId", "ModuloId");
+
+                    b.HasIndex("ModuloId");
+
+                    b.ToTable("SquashModuloCaso");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1407,6 +1452,17 @@ namespace PortafolioQA.Migrations
                     b.Navigation("SquashCampana");
                 });
 
+            modelBuilder.Entity("PortafolioQA.Models.SquashModulo", b =>
+                {
+                    b.HasOne("PortafolioQA.Models.SquashIteracion", "SquashIteracion")
+                        .WithMany("Modulos")
+                        .HasForeignKey("SquashIteracionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SquashIteracion");
+                });
+
             modelBuilder.Entity("PortafolioQA.Models.VinculoBugzilla", b =>
                 {
                     b.HasOne("PortafolioQA.Models.Proyecto", "Proyecto")
@@ -1416,6 +1472,21 @@ namespace PortafolioQA.Migrations
                         .IsRequired();
 
                     b.Navigation("Proyecto");
+                });
+
+            modelBuilder.Entity("SquashModuloCaso", b =>
+                {
+                    b.HasOne("PortafolioQA.Models.SquashCaso", null)
+                        .WithMany()
+                        .HasForeignKey("CasoId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("PortafolioQA.Models.SquashModulo", null)
+                        .WithMany()
+                        .HasForeignKey("ModuloId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PortafolioQA.Models.Acuerdo", b =>
@@ -1478,6 +1549,8 @@ namespace PortafolioQA.Migrations
             modelBuilder.Entity("PortafolioQA.Models.SquashIteracion", b =>
                 {
                     b.Navigation("Casos");
+
+                    b.Navigation("Modulos");
                 });
 #pragma warning restore 612, 618
         }

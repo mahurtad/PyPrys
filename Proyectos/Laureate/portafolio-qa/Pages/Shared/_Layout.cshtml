@@ -1,95 +1,117 @@
+@{
+    var autenticado = User.Identity?.IsAuthenticated == true;
+    var rol = User.IsInRole(Roles.Administrador) ? Roles.Administrador
+            : User.IsInRole(Roles.Editor) ? Roles.Editor
+            : User.IsInRole(Roles.Lector) ? Roles.Lector : null;
+    var nombre = User.Identity?.Name ?? "";
+    var iniciales = nombre.Length > 0 ? nombre.Substring(0, 1).ToUpperInvariant() : "?";
+}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Portafolio QA</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/tabler/dist/css/tabler.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/PortafolioQA.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/tabler-custom.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+    @* Aplica antes de pintar la preferencia de plegado del menú (si el almacenamiento no está disponible, el menú queda visible). *@
+    <script>try { if (localStorage.getItem('portafolioqa.menu') === 'plegado') document.documentElement.classList.add('menu-plegado'); } catch (e) { }</script>
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+    <a class="visually-hidden-focusable" href="#contenido">Saltar al contenido</a>
+@if (autenticado)
+{
+    <div class="page">
+        <aside class="navbar navbar-vertical navbar-expand-lg" id="menu-lateral" data-bs-theme="dark">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-page="/Portafolio/Index">Portafolio QA</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu-navegacion"
+                        aria-controls="menu-navegacion" aria-expanded="false" aria-label="Mostrar u ocultar el menú de navegación">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-lg-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Portafolio/Index">Portafolio</a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-dark" href="#" id="planDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Planificación
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="planDropdown">
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Planificacion/Gantt">Gantt</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Planificacion/Calendario">Calendario</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Planificacion/Capacidad">Capacidad QA</a></li>
-                            </ul>
-                        </li>
-                        @if (User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.Editor))
-                        {
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-dark" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Administración
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Instituciones/Index">Instituciones</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/RecursosQA/Index">Recursos QA</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Sistemas/Index">Sistemas / periféricos</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Proyectos/Index">Proyectos</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Asignaciones/Index">Asignaciones</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Hitos/Index">Hitos</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Feriados/Index">Feriados</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Ausencias/Index">Ausencias</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Integraciones/Index">Integraciones</a></li>
-                                @if (User.IsInRole(Roles.Administrador))
-                                {
-                                    <li><hr class="dropdown-divider" /></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Admin/Usuarios/Index">Usuarios</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Setup/Index">Conexión a la base de datos</a></li>
-                                }
-                            </ul>
-                        </li>
-                        }
-                        }
-                    </ul>
-                    @if (User.Identity?.IsAuthenticated == true)
-                    {
-                        <div class="d-flex align-items-center gap-2 small">
-                            <span class="text-muted">@User.Identity.Name</span>
-                            <a class="btn btn-sm btn-outline-secondary" asp-area="" asp-page="/Account/CambiarPassword">Contraseña</a>
-                            <form method="post" asp-area="" asp-page="/Account/Logout" class="m-0">
-                                <button type="submit" class="btn btn-sm btn-outline-dark">Salir</button>
-                            </form>
-                        </div>
-                    }
+                <div class="navbar-brand navbar-brand-autodark">
+                    <a href="@Url.Page("/Portafolio/Index")">Portafolio QA</a>
+                </div>
+                <div class="collapse navbar-collapse" id="menu-navegacion">
+                    <nav aria-label="Navegación principal">
+                        <partial name="_MenuLateral" />
+                    </nav>
                 </div>
             </div>
-        </nav>
-    </header>
-    <div class="container-fluid">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container-fluid">
-            &copy; 2026 - Portafolio QA - Versión interna
+        </aside>
+        <div class="page-wrapper">
+            <header class="navbar d-print-none">
+                <div class="container-fluid">
+                    <button type="button" id="btn-plegar-menu" class="btn btn-outline-secondary d-none d-lg-inline-flex me-3"
+                            aria-controls="menu-lateral" aria-expanded="true" aria-label="Ocultar el menú lateral" title="Ocultar el menú lateral">
+                        <partial name="_Icono" model='"plegar"' /><span class="ms-1">Menú</span>
+                    </button>
+                    <div class="page-titulo">@ViewData["Title"]</div>
+                    <div class="ms-auto">
+                        <div class="dropdown">
+                            <a href="#" class="nav-link d-flex p-0 px-2" data-bs-toggle="dropdown" role="button" aria-expanded="false"
+                               aria-label="Menú de usuario: @nombre">
+                                <span class="avatar avatar-sm" aria-hidden="true">@iniciales</span>
+                                <span class="d-none d-md-block ps-2 text-start">
+                                    <span class="d-block usuario-nombre">@nombre</span>
+                                    @if (rol is not null) { <span class="d-block small text-secondary">@rol</span> }
+                                </span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                                <span class="dropdown-header d-md-none">@nombre</span>
+                                <a class="dropdown-item" asp-area="" asp-page="/Account/CambiarPassword">Cambiar contraseña</a>
+                                <div class="dropdown-divider"></div>
+                                <form method="post" asp-area="" asp-page="/Account/Logout" class="m-0">
+                                    <button type="submit" class="dropdown-item">Salir</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <div class="page-body">
+                <div class="container-fluid">
+                    <main role="main" id="contenido" tabindex="-1">
+                        @RenderBody()
+                    </main>
+                </div>
+            </div>
+            <footer class="footer footer-transparent d-print-none">
+                <div class="container-fluid text-secondary">&copy; 2026 - Portafolio QA - Versión interna</div>
+            </footer>
         </div>
-    </footer>
+    </div>
+}
+else
+{
+    <div class="page">
+        <header class="navbar d-print-none border-bottom">
+            <div class="container-xl">
+                <div class="navbar-brand">Portafolio QA</div>
+            </div>
+        </header>
+        <div class="page-body">
+            <div class="container-xl">
+                <main role="main" id="contenido" tabindex="-1">
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+        <footer class="footer footer-transparent d-print-none">
+            <div class="container-xl text-secondary">&copy; 2026 - Portafolio QA - Versión interna</div>
+        </footer>
+    </div>
+}
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @* tabler.min.js ya incluye Bootstrap 5.3 (JS) y Popper: no se carga bootstrap.bundle por separado. *@
+    <script src="~/lib/tabler/dist/js/tabler.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @if (autenticado)
+    {
+        <script src="~/js/menu-lateral.js" asp-append-version="true"></script>
+    }
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>

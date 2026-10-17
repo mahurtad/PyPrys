@@ -47,6 +47,30 @@ public class SquashIteracion
     public bool Vigente { get; set; } = true;
 
     public List<SquashCaso> Casos { get; set; } = new();
+
+    public List<SquashModulo> Modulos { get; set; } = new();
+}
+
+/// <summary>
+/// Módulo = suite de pruebas de Squash dentro de una iteración. Agrupa ítems del plan de pruebas por la relación real
+/// que informa Squash (test-suites/{id}/test-plan), no por nombres. Un ítem puede estar en varios módulos o en ninguno.
+/// </summary>
+public class SquashModulo
+{
+    public int Id { get; set; }
+
+    public int SquashIteracionId { get; set; }
+    public SquashIteracion? SquashIteracion { get; set; }
+
+    /// <summary>Id de la suite en Squash.</summary>
+    public int SquashId { get; set; }
+
+    [StringLength(200)]
+    public string Nombre { get; set; } = string.Empty;
+
+    public bool Vigente { get; set; } = true;
+
+    public List<SquashCaso> Casos { get; set; } = new();
 }
 
 public class SquashCaso
@@ -81,4 +105,6 @@ public class SquashCaso
     public DateTime? UltimaEjecucion { get; set; }
 
     public bool Vigente { get; set; } = true;
+
+    public List<SquashModulo> Modulos { get; set; } = new();
 }

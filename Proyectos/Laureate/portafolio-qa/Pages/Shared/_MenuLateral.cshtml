@@ -1,0 +1,64 @@
+@* Menú lateral (componente navbar-vertical de Tabler). Solo presenta enlaces: la autorización real la aplican
+   las convenciones de Razor Pages en Program.cs, de modo que ocultar una opción aquí no concede ni quita permisos. *@
+@{
+    var paginaActual = ViewContext.RouteData.Values["page"] as string ?? "";
+    var esAdmin = User.IsInRole(Roles.Administrador);
+    var puedeEditar = esAdmin || User.IsInRole(Roles.Editor);
+
+    bool EnRuta(string carpeta) =>
+        paginaActual.Equals(carpeta, StringComparison.OrdinalIgnoreCase)
+        || paginaActual.StartsWith(carpeta + "/", StringComparison.OrdinalIgnoreCase);
+
+    // Entradas compartidas con el menú del Dashboard (PortafolioQA.Services.MenuNavegacion).
+    var planificacion = PortafolioQA.Services.MenuNavegacion.Planificacion.Select(e => (e.Carpeta, e.Pagina, e.Texto, e.Icono)).ToArray();
+    var administracion = PortafolioQA.Services.MenuNavegacion.Administracion.Select(e => (e.Carpeta, e.Pagina, e.Texto, e.Icono)).ToArray();
+    var sistema = PortafolioQA.Services.MenuNavegacion.Sistema.Select(e => (e.Carpeta, e.Pagina, e.Texto, e.Icono)).ToArray();
+
+    async Task Grupo(string id, string titulo, string icono, (string Carpeta, string Pagina, string Texto, string Icono)[] items)
+    {
+        var abierto = items.Any(i => EnRuta(i.Carpeta));
+        <li class="nav-item dropdown @(abierto ? "active" : "")">
+            <a class="nav-link dropdown-toggle @(abierto ? "show" : "")" href="#grupo-@id" role="button"
+               data-bs-toggle="dropdown" data-bs-auto-close="false" aria-expanded="@(abierto ? "true" : "false")">
+                <span class="nav-link-icon"><partial name="_Icono" model="icono" /></span>
+                <span class="nav-link-title">@titulo</span>
+            </a>
+            <div class="dropdown-menu @(abierto ? "show" : "")" id="grupo-@id">
+                <div class="dropdown-menu-columns">
+                    <div class="dropdown-menu-column">
+                        @foreach (var item in items)
+                        {
+                            var activo = EnRuta(item.Carpeta);
+                            <a class="dropdown-item @(activo ? "active" : "")" href="@Url.Page(item.Pagina)" aria-current="@(activo ? "page" : null)">
+                                <span class="nav-link-icon me-2"><partial name="_Icono" model="item.Icono" /></span>@item.Texto
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </li>
+    }
+}
+<ul class="navbar-nav pt-lg-3">
+    <li class="nav-item @(EnRuta("/Portafolio") ? "active" : "")">
+        <a class="nav-link" href="@Url.Page("/Portafolio/Index")" aria-current="@(EnRuta("/Portafolio") ? "page" : null)">
+            <span class="nav-link-icon"><partial name="_Icono" model='"portafolio"' /></span>
+            <span class="nav-link-title">Portafolio</span>
+        </a>
+    </li>
+    <li class="nav-item @(EnRuta("/Dashboard") ? "active" : "")">
+        <a class="nav-link" href="@Url.Page("/Dashboard/Index")" aria-current="@(EnRuta("/Dashboard") ? "page" : null)">
+            <span class="nav-link-icon"><partial name="_Icono" model='"dashboard"' /></span>
+            <span class="nav-link-title">Dashboard</span>
+        </a>
+    </li>
+    @{ await Grupo("planificacion", "Planificación", "planificacion", planificacion); }
+    @if (puedeEditar)
+    {
+        await Grupo("administracion", "Administración", "administracion", administracion);
+    }
+    @if (esAdmin)
+    {
+        await Grupo("sistema", "Sistema", "usuarios", sistema);
+    }
+</ul>

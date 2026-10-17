@@ -148,7 +148,7 @@ else
                             <td>
                                 @if (ocupacion.HasValue)
                                 {
-                                    <div class="progress" style="height:18px" role="progressbar" aria-valuenow="@ancho" aria-valuemin="0" aria-valuemax="100"
+                                    <div class="progress progress-texto" role="progressbar" aria-valuenow="@ancho" aria-valuemin="0" aria-valuemax="100"
                                          title="@Hrs(r.HorasAsignadas) h asignadas de @Hrs(r.HorasCapacidad) h de capacidad">
                                         <div class="progress-bar @colorBarra" style="width:@(ancho)%">@(ocupacion.Value.ToString("0")) %</div>
                                     </div>

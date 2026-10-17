@@ -21,7 +21,7 @@ public class BugzillaOptions
 }
 
 /// <summary>Consulta de defectos por nombre exacto de producto de Bugzilla.</summary>
-public class BugzillaClient(HttpClient http) : IIntegracionDefectos
+public class BugzillaClient(HttpClient http) : IIntegracionDefectos, IVerificaProductoDefectos
 {
     public async Task<ResultadoDefectos> ObtenerDefectosAsync(string identificadorExterno, CancellationToken cancellationToken = default)
     {
@@ -57,6 +57,20 @@ public class BugzillaClient(HttpClient http) : IIntegracionDefectos
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return Fallo("Bugzilla no respondió a tiempo."); }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or KeyNotFoundException or InvalidOperationException)
         { return Fallo("No se pudo consultar Bugzilla. Revisa la conexión y su API REST."); }
+    }
+
+    /// <summary>GET product?names=: lista vacía = no existe o la cuenta no tiene acceso.</summary>
+    public async Task<bool?> ProductoExisteAsync(string producto, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await http.GetAsync($"product?names={Uri.EscapeDataString(producto.Trim())}&include_fields=id", cancellationToken);
+            if (!response.IsSuccessStatusCode) return null;
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            return json.RootElement.TryGetProperty("products", out var p) ? p.GetArrayLength() > 0 : null;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return null; }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException) { return null; }
     }
 
     private static ResultadoDefectos Fallo(string mensaje) => new() { Disponible = false, Mensaje = mensaje };

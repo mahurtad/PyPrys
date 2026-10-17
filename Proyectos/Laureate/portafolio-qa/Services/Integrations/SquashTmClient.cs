@@ -132,7 +132,19 @@ public class SquashTmClient : IIntegracionCertificacion, ISquashApi
                         var casos = new List<SquashCasoDto>();
                         await foreach (var item in PaginarAsync($"iterations/{iteracionId}/test-plan", "test-plan", ct))
                             casos.Add(LeerCaso(item));
-                        iteraciones.Add(new SquashIteracionDto(iteracionId, Texto(it, "name") ?? $"Iteración {iteracionId}", null, casos));
+                        // Módulos = suites de la iteración; cada una informa los ítems del plan que contiene.
+                        var modulos = new List<SquashModuloDto>();
+                        using (var det = await GetAsync($"iterations/{iteracionId}", ct))
+                            if (det.RootElement.TryGetProperty("test_suites", out var suites) && suites.ValueKind == JsonValueKind.Array)
+                                foreach (var suite in suites.EnumerateArray())
+                                {
+                                    var suiteId = suite.GetProperty("id").GetInt32();
+                                    var items = new List<int>();
+                                    await foreach (var item in PaginarAsync($"test-suites/{suiteId}/test-plan", "test-plan", ct))
+                                        items.Add(item.GetProperty("id").GetInt32());
+                                    modulos.Add(new SquashModuloDto(suiteId, Texto(suite, "name") ?? $"Suite {suiteId}", items));
+                                }
+                        iteraciones.Add(new SquashIteracionDto(iteracionId, Texto(it, "name") ?? $"Iteración {iteracionId}", null, casos, modulos));
                     }
                 }
                 campanas.Add(new SquashCampanaDto(campanaId, Texto(raiz, "name") ?? $"Campaña {campanaId}", Texto(raiz, "progress_status"), iteraciones));

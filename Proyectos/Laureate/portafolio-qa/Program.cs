@@ -83,6 +83,12 @@ builder.Services.AddRazorPages(options =>
 
 builder.Services.AddScoped<CapacidadService>();
 
+// Dashboard gerencial: solo lectura. Caché breve de Bugzilla (singleton) y servicio por solicitud.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<DashboardDefectosCache>();
+builder.Services.AddScoped<DashboardService>();
+
 // Integraciones externas: en la etapa 1 no hay conexión real configurada.
 // Las etapas 4 y 5 registrarán implementaciones reales sin cambiar quien las consume.
 // Squash TM: el token va en user-secrets (Squash:Token). Sin token se mantiene la implementación "no configurada".

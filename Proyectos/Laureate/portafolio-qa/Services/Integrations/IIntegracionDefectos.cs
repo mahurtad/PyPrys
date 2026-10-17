@@ -9,6 +9,8 @@ public class DefectoExterno
     public string Id { get; set; } = string.Empty;
     public string Titulo { get; set; } = string.Empty;
     public string Estado { get; set; } = string.Empty;
+    /// <summary>Estado para mostrar: traduce los estados de Bugzilla que ya tienen nombre en español; el resto se muestra tal cual.</summary>
+    public string EstadoTexto => Estado.Trim().ToUpperInvariant() switch { "CONFIRMED" => "Confirmado", _ => Estado };
     public string? Resolucion { get; set; }
     public string? Severidad { get; set; }
     public string? Prioridad { get; set; }

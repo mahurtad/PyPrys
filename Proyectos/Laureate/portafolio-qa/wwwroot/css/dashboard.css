@@ -1,0 +1,84 @@
+/* Dashboard gerencial: complementos sobre Tabler 1.6.1 (se carga solo en /Dashboard desde la sección Styles de _Layout).
+   Los gráficos son HTML/CSS renderizado en servidor: sin biblioteca de gráficos ni JavaScript. El color solo refuerza; cada valor
+   también aparece como texto (leyenda, cifras y aria-label). */
+
+.dash { --c-planificado: var(--tblr-azure); --c-certificacion: var(--tblr-primary); --c-cerrado: var(--tblr-green); --c-cancelado: var(--tblr-gray-400);
+        --c-aprobado: var(--tblr-green); --c-fallido: var(--tblr-red); --c-advertencia: var(--tblr-yellow); --c-bloqueado: var(--tblr-orange);
+        --c-curso: var(--tblr-azure); --c-sin-ejecutar: var(--tblr-gray-300);
+        --c-bloqueante: var(--tblr-red); --c-abierto: var(--tblr-indigo); --c-retest: var(--tblr-teal);
+        --c-tipo-1: var(--tblr-primary); --c-tipo-2: var(--tblr-azure); --c-tipo-3: var(--tblr-purple); }
+
+/* Iconos SVG en línea (subconjunto de Tabler Icons, MIT) */
+.dash .icon-tabler { width: 1.25rem; height: 1.25rem; }
+.dash .avatar .icon-tabler { width: 1.5rem; height: 1.5rem; }
+.dash .icono-atencion .icon-tabler { width: 1.2rem; height: 1.2rem; }
+#resumen-proyecto { scroll-margin-top: 1rem; }
+#resumen-proyecto:focus { outline: none; }
+
+/* Indicadores */
+.kpi .h1 { font-variant-numeric: tabular-nums; }
+
+/* Tarjetas por institución */
+.tarjeta-institucion { text-decoration: none; color: inherit; }
+.tarjeta-institucion.seleccionada { border-color: var(--tblr-primary); box-shadow: 0 0 0 1px var(--tblr-primary); }
+.tarjeta-institucion .nombre { font-weight: 600; overflow-wrap: anywhere; }
+.tarjeta-institucion .cantidad { font-size: 1.6rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+
+/* Barras apiladas (tarjetas, pruebas, defectos) */
+.apilada { display: flex; height: .9rem; border-radius: 4px; overflow: hidden; background: var(--tblr-bg-surface-secondary); }
+.apilada.fina { height: .35rem; }
+.apilada > span { display: block; height: 100%; min-width: 0; }
+.apilada > span + span { box-shadow: -1px 0 0 var(--tblr-bg-surface); }
+
+/* Proyectos por estado: una fila por estado */
+.fila-barra { display: grid; grid-template-columns: 8.5rem 1fr 5.5rem; gap: .75rem; align-items: center; margin: .85rem 0; font-size: .85rem; }
+.fila-barra .valor { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fila-barra .valor small { color: var(--tblr-secondary); font-weight: 400; }
+
+/* Dona por tipo de iniciativa */
+.dona-caja { display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; min-height: 10rem; }
+.dona { width: 9.5rem; height: 9.5rem; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto; }
+.dona .hueco { width: 6.9rem; height: 6.9rem; border-radius: 50%; background: var(--tblr-bg-surface); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.dona .hueco strong { font-size: 1.8rem; line-height: 1.1; }
+
+/* Leyendas */
+.dash-leyenda { font-size: .85rem; margin: 0; padding: 0; list-style: none; }
+.dash-leyenda li { display: flex; align-items: center; gap: .5rem; margin: .5rem 0; }
+.dash-leyenda li b { margin-left: auto; padding-left: 1.25rem; font-variant-numeric: tabular-nums; }
+.dash-leyenda.en-linea { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; margin-top: 1rem; }
+.dash-leyenda.en-linea li { margin: 0; }
+.dash-leyenda.en-linea li b { margin-left: .25rem; padding-left: 0; }
+.punto { width: .7rem; height: .7rem; border-radius: 3px; flex: 0 0 auto; display: inline-block; }
+
+/* Pruebas y defectos: una barra por proyecto */
+.fila-apilada { margin: 1rem 0; }
+.fila-apilada .rotulo { display: flex; justify-content: space-between; gap: 1rem; font-size: .85rem; margin-bottom: .35rem; }
+.fila-apilada .rotulo a { font-weight: 600; overflow-wrap: anywhere; }
+.fila-apilada .rotulo span { color: var(--tblr-secondary); text-align: right; font-variant-numeric: tabular-nums; }
+.sin-cifras { font-size: .8rem; color: var(--tblr-secondary); margin-top: 1rem; border-top: 1px solid var(--tblr-border-color); padding-top: .75rem; }
+.sin-cifras ul { margin: .25rem 0 0; padding-left: 1.1rem; }
+
+/* Tabla de seguimiento */
+.tabla-seguimiento td, .tabla-seguimiento th { vertical-align: middle; }
+.tabla-seguimiento .col-proyecto { min-width: 12rem; max-width: 18rem; overflow-wrap: anywhere; }
+.tabla-seguimiento .celda-avance { min-width: 7rem; }
+.tabla-seguimiento .celda-fuente .badge { font-weight: 500; }
+.tabla-seguimiento tr.table-active > * { background-color: var(--tblr-primary-lt); }
+
+/* Atención */
+.lista-atencion .list-group-item { padding-left: 0; padding-right: 0; }
+.lista-atencion .hechos { margin: .25rem 0 0; padding-left: 0; list-style: none; font-size: .85rem; color: var(--tblr-secondary); }
+
+/* Desglose desplegable */
+details.nodo > summary { cursor: pointer; padding: .4rem .6rem; border: 1px solid var(--tblr-border-color); border-radius: .375rem; background: var(--tblr-bg-surface-secondary); }
+details.nodo[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+details.nodo > summary:focus-visible { outline: 2px solid var(--tblr-primary); outline-offset: 2px; }
+.dl-contexto dt { font-weight: 500; color: var(--tblr-secondary); }
+
+@media (max-width: 575.98px) {
+    .fila-barra { grid-template-columns: 6.5rem 1fr 4.5rem; gap: .5rem; }
+    .dona-caja { gap: 1rem; }
+    .fila-apilada .rotulo { flex-direction: column; gap: 0; }
+    .fila-apilada .rotulo span { text-align: left; }
+}
+@media print { .d-print-none { display: none !important; } }

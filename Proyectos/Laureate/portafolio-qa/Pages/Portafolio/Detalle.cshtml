@@ -25,26 +25,6 @@
     </div>
     <div class="text-end">
         <span class="badge @Model.Proyecto.Estado.BadgeClase() fs-6">@Model.Proyecto.Estado.Texto()</span>
-        <div class="mt-2" id="bugzilla">
-            <partial name="_EtiquetaBugzilla" model="Model.Proyecto" />
-            @if (puedeEditar && Model.Proyecto.SquashProjectId is not null && Model.Proyecto.VinculoBugzilla?.Estado != EstadoBugzilla.Configurado)
-            {
-                <form method="post" asp-page-handler="ReintentarBugzilla" asp-route-id="@Model.Proyecto.Id" class="d-inline">
-                    <button type="submit" class="btn btn-sm btn-outline-primary py-0" data-bugzilla-reintentar>Reintentar</button>
-                </form>
-                @if (User.IsInRole(Roles.Administrador) && Model.Proyecto.VinculoBugzilla?.Estado == EstadoBugzilla.Error && Model.Proyecto.VinculoBugzilla.ProductoId is null)
-                {
-                    <form method="post" asp-page-handler="ReintentarBugzilla" asp-route-id="@Model.Proyecto.Id" asp-route-asociarExistente="true" class="d-inline"
-                          onsubmit="return confirm('¿Confirmas que el producto de Bugzilla con este nombre corresponde a esta iniciativa?');">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary py-0">Asociar existente</button>
-                    </form>
-                }
-            }
-            @if (Model.Proyecto.SquashProjectId is not null)
-            {
-                <div class="small text-muted mt-1" style="max-width:26rem">Asociar el proyecto de Squash TM con este producto de Bugzilla es un paso manual: Squash TM 11 no ofrece una API para hacerlo.</div>
-            }
-        </div>
         <div class="mt-2">
             @if (puedeEditar)
             {
@@ -96,15 +76,33 @@
                         <dd class="col-sm-7">@Model.Status.Ejecutados</dd>
                         <dt class="col-sm-5">Fallidos</dt>
                         <dd class="col-sm-7">@Model.Status.Fallidos</dd>
-                        <dt class="col-sm-5">Defectos abiertos</dt>
-                        <dd class="col-sm-7">@(Model.DefectosAbiertos?.ToString() ?? "Sin datos disponibles")</dd>
-                        <dt class="col-sm-5">Avance (%)</dt>
-                        <dd class="col-sm-7">
-                            <div class="progress" role="progressbar" aria-valuenow="@Model.Proyecto.Avance" aria-valuemin="0" aria-valuemax="100">
-                                <div class="progress-bar" style="width:@(Model.Proyecto.Avance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%;@(Model.Proyecto.Avance > 0 ? "min-width:3rem" : "")">@(Model.Proyecto.Avance.ToString("0.#"))%</div>
-                            </div>
-                        </dd>
                     </dl>
+                    <hr class="my-3" />
+                    <h3 class="h5 mb-2">Defectos <span class="text-secondary fw-normal small">(Bugzilla)</span></h3>
+                    @if (Model.Resumen is { } r)
+                    {
+                        <dl class="row mb-2">
+                            <dt class="col-sm-5">Total de defectos</dt>
+                            <dd class="col-sm-7">@r.Total</dd>
+                            <dt class="col-sm-5">Defectos abiertos</dt>
+                            <dd class="col-sm-7">@r.Abiertos</dd>
+                        </dl>
+                        <div class="d-flex flex-wrap gap-1">
+                            <span class="tag-defecto tag-bloqueante">Bloqueantes <b>@r.Bloqueantes</b></span>
+                            <span class="tag-defecto tag-nobloqueante">No bloqueantes <b>@r.NoBloqueantes</b></span>
+                            <span class="tag-defecto tag-mejora">Mejora <b>@r.Mejoras</b></span>
+                            @if (r.SinClasificar > 0)
+                            {
+                                <span class="tag-defecto tag-sinclasificar" title="Abiertos con otra severidad">Sin clasificar <b>@r.SinClasificar</b></span>
+                            }
+                            <span class="tag-defecto tag-retest" title="RESOLVED + FIXED">Pendiente de retest <b>@r.PendienteRetest</b></span>
+                        </div>
+                        <div class="small text-secondary mt-2">Severidad solo sobre los defectos abiertos (estado distinto de RESOLVED, VERIFIED y CLOSED).</div>
+                    }
+                    else
+                    {
+                        <p class="text-secondary mb-0">Sin datos disponibles.</p>
+                    }
                 }
             </div>
         </div>
@@ -193,7 +191,7 @@
                                     <td>@act.FechaFin.ToString("dd/MM/yyyy")</td>
                                     <td><span class="badge @act.Estado.BadgeClase()">@act.Estado.Texto()</span></td>
                                     <td>
-                                        <div class="progress" style="height:16px" role="progressbar" aria-valuenow="@act.Avance" aria-valuemin="0" aria-valuemax="100">
+                                        <div class="progress progress-texto" role="progressbar" aria-valuenow="@act.Avance" aria-valuemin="0" aria-valuemax="100">
                                             <div class="progress-bar" style="width:@(act.Avance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%;@(act.Avance > 0 ? "min-width:2.5rem" : "")">@(act.Avance.ToString("0.#"))%</div>
                                         </div>
                                     </td>
@@ -240,43 +238,79 @@
                     @foreach (var camp in campanasSquash)
                     {
                         <div class="px-3 pt-3 fw-semibold">Campaña: @camp.Nombre</div>
-                        <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-2">
-                            <thead><tr><th>Caso de prueba</th><th>Estado en Squash</th><th style="width:90px">Avance</th><th>Asignado</th></tr></thead>
-                            <tbody>
-                                @foreach (var it in camp.Iteraciones.Where(i => i.Vigente).OrderBy(i => i.SquashId))
-                                {
-                                    <tr class="table-light">
-                                        <td colspan="4">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <strong class="flex-shrink-0">@it.Nombre</strong>
-                                                <div class="progress flex-grow-1" style="height:14px" role="progressbar" aria-valuenow="@it.Porcentaje" aria-valuemin="0" aria-valuemax="100">
-                                                    <div class="progress-bar" style="width:@(it.Porcentaje.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%;@(it.Porcentaje > 0 ? "min-width:2.5rem" : "")">@(it.Porcentaje.ToString("0.#"))%</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    @foreach (var caso in it.Casos.Where(k => k.Vigente).OrderBy(k => k.SquashItemId))
+                        @foreach (var it in camp.Iteraciones.Where(i => i.Vigente).OrderBy(i => i.SquashId))
+                        {
+                            var casosIt = it.Casos.Where(k => k.Vigente).OrderBy(k => k.SquashItemId).ToList();
+                            // Grupos = módulos (suites de Squash, relación real) y "Sin módulo" para los ítems que no están en ninguna suite.
+                            var grupos = it.Modulos.Where(m => m.Vigente).OrderBy(m => m.SquashId)
+                                .Select(m => (Id: m.Id, Nombre: m.Nombre, Casos: m.Casos.Where(k => k.Vigente && k.SquashIteracionId == it.Id).OrderBy(k => k.SquashItemId).ToList()))
+                                .ToList();
+                            var sinModulo = casosIt.Where(k => !k.Modulos.Any(m => m.Vigente)).ToList();
+                            if (sinModulo.Any()) { grupos.Add((Id: 0, Nombre: "Sin módulo", Casos: sinModulo)); }
+                            <div class="px-3 pt-2 d-flex align-items-center gap-2">
+                                <strong class="flex-shrink-0">Iteración: @it.Nombre</strong>
+                                <div class="progress progress-texto flex-grow-1" role="progressbar" aria-valuenow="@it.Porcentaje" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar" style="width:@(it.Porcentaje.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%;@(it.Porcentaje > 0 ? "min-width:2.5rem" : "")">@(it.Porcentaje.ToString("0.#"))%</div>
+                                </div>
+                            </div>
+                            @if (!grupos.Any())
+                            {
+                                <p class="text-muted small px-3 py-2 mb-2">Sin casos en el plan de pruebas.</p>
+                            }
+                            else
+                            {
+                            <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-2 tabla-modulos">
+                                <thead><tr><th>Módulo</th><th class="text-end">Casos</th><th class="text-end">Ejecutados</th><th class="text-end">Pendientes</th><th class="text-end">Avance</th><th><span class="visually-hidden">Detalle</span></th></tr></thead>
+                                <tbody>
+                                    @foreach (var g in grupos)
                                     {
+                                        var ejecutados = g.Casos.Count(k => k.EstadoSquash is "SUCCESS" or "SETTLED" or "FAILURE" or "ERROR" or "WARNING");
+                                        var noCuentan = g.Casos.Count(k => k.Porcentaje is null);
+                                        var pendientes = g.Casos.Count - ejecutados - noCuentan;
+                                        var conPorcentaje = g.Casos.Where(k => k.Porcentaje is not null).ToList();
+                                        var avanceModulo = conPorcentaje.Count == 0 ? 0m : Math.Round(conPorcentaje.Average(k => k.Porcentaje!.Value), 1);
+                                        var idDetalle = $"modulo-{it.Id}-{g.Id}";
                                         <tr>
-                                            <td class="ps-4">@caso.Nombre</td>
-                                            <td><span class="badge @PortafolioQA.Services.Integrations.SquashEstados.Badge(caso.EstadoSquash)">@PortafolioQA.Services.Integrations.SquashEstados.Texto(caso.EstadoSquash)</span></td>
-                                            <td>@(caso.Porcentaje is null ? "—" : caso.Porcentaje.Value.ToString("0.#") + "%")</td>
-                                            <td>@(caso.RecursoQA?.NombreCompleto ?? caso.AsignadoLogin ?? "—")</td>
+                                            <td class="fw-medium">@g.Nombre@if (noCuentan > 0) { <span class="text-secondary small fw-normal" title="No ejecutables, omitidos o cancelados: no cuentan como pendientes ni para el avance"> (@noCuentan sin contar)</span> }</td>
+                                            <td class="text-end">@g.Casos.Count</td>
+                                            <td class="text-end">@ejecutados</td>
+                                            <td class="text-end">@pendientes</td>
+                                            <td class="text-end">@avanceModulo.ToString("0.#") %</td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#@idDetalle" aria-expanded="false" aria-controls="@idDetalle">Ver casos</button>
+                                            </td>
+                                        </tr>
+                                        <tr class="collapse" id="@idDetalle">
+                                            <td colspan="6" class="bg-light p-0">
+                                                <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0">
+                                                    <thead><tr><th>Caso de prueba</th><th>Estado en Squash</th><th style="width:90px">Avance</th><th>Asignado</th></tr></thead>
+                                                    <tbody>
+                                                        @foreach (var caso in g.Casos)
+                                                        {
+                                                            <tr>
+                                                                <td class="ps-4">@caso.Nombre</td>
+                                                                <td><span class="badge @PortafolioQA.Services.Integrations.SquashEstados.Badge(caso.EstadoSquash)">@PortafolioQA.Services.Integrations.SquashEstados.Texto(caso.EstadoSquash)</span></td>
+                                                                <td>@(caso.Porcentaje is null ? "—" : caso.Porcentaje.Value.ToString("0.#") + "%")</td>
+                                                                <td>@(caso.RecursoQA?.NombreCompleto ?? caso.AsignadoLogin ?? "—")</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                                </div>
+                                            </td>
                                         </tr>
                                     }
-                                    @if (!it.Casos.Any(k => k.Vigente))
-                                    {
-                                        <tr><td colspan="4" class="text-muted ps-4 small">Sin casos en el plan de pruebas.</td></tr>
-                                    }
-                                }
-                                @if (!camp.Iteraciones.Any(i => i.Vigente))
-                                {
-                                    <tr><td colspan="4" class="text-muted small">Sin iteraciones.</td></tr>
-                                }
-                            </tbody>
-                        </table>
-                        </div>
+                                </tbody>
+                            </table>
+                            </div>
+                            }
+                        }
+                        @if (!camp.Iteraciones.Any(i => i.Vigente))
+                        {
+                            <p class="text-muted small px-3 py-2 mb-2">Sin iteraciones.</p>
+                        }
                     }
                 }
             </div>
@@ -487,7 +521,7 @@
     <div class="card-body">
         @if (Model.Defectos.Count == 0)
         {
-            <p class="text-muted mb-0">Asocia el nombre del producto desde Administración → Integraciones.</p>
+            <p class="text-muted mb-0">Sin producto de Bugzilla asociado. Se puede asociar desde Administración → Integraciones.</p>
         }
         @foreach (var consulta in Model.Defectos)
         {
@@ -506,7 +540,7 @@
                     <thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Severidad</th><th>Responsable</th></tr></thead>
                     <tbody>@foreach (var defecto in consulta.Resultado.Defectos)
                     {
-                        <tr><td><a href="@defecto.Url" target="_blank" rel="noopener noreferrer">@defecto.Id</a></td><td>@defecto.Titulo</td><td>@defecto.Estado @defecto.Resolucion</td><td>@defecto.Severidad</td><td>@defecto.Responsable</td></tr>
+                        <tr><td><a href="@defecto.Url" target="_blank" rel="noopener noreferrer">@defecto.Id</a></td><td>@defecto.Titulo</td><td>@defecto.EstadoTexto @defecto.Resolucion</td><td>@defecto.Severidad</td><td>@defecto.Responsable</td></tr>
                     }</tbody>
                 </table></div>
             }

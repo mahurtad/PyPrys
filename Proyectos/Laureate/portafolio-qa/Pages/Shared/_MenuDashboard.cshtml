@@ -1,0 +1,38 @@
+@* Menú lateral con marcado de AdminLTE 4 para el layout del Dashboard. Las entradas salen de MenuNavegacion (las mismas del menú de Tabler);
+   solo presenta enlaces: la autorización real la aplican las convenciones de Razor Pages en Program.cs. *@
+@using PortafolioQA.Services
+@{
+    var paginaActual = ViewContext.RouteData.Values["page"] as string ?? "";
+    var esAdmin = User.IsInRole(Roles.Administrador);
+    var puedeEditar = esAdmin || User.IsInRole(Roles.Editor);
+
+    async Task Enlace(MenuNavegacion.Entrada e)
+    {
+        var activo = MenuNavegacion.EnRuta(paginaActual, e.Carpeta);
+        <li class="nav-item">
+            <a class="nav-link @(activo ? "active" : "")" href="@Url.Page(e.Pagina)" aria-current="@(activo ? "page" : null)">
+                <span class="nav-icon"><partial name="_Icono" model="e.Icono" /></span>
+                <p>@e.Texto</p>
+            </a>
+        </li>
+    }
+
+    async Task Grupo(string titulo, string icono, MenuNavegacion.Entrada[] items)
+    {
+        var abierto = items.Any(i => MenuNavegacion.EnRuta(paginaActual, i.Carpeta));
+        <li class="nav-item @(abierto ? "menu-open" : "")">
+            <a href="#" class="nav-link @(abierto ? "active" : "")">
+                <span class="nav-icon"><partial name="_Icono" model="icono" /></span>
+                <p>@titulo<span class="nav-arrow"><partial name="_Icono" model='"chevron-der"' /></span></p>
+            </a>
+            <ul class="nav nav-treeview">
+                @foreach (var item in items) { await Enlace(item); }
+            </ul>
+        </li>
+    }
+}
+<ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
+    @{ await Enlace(MenuNavegacion.Portafolio); await Enlace(MenuNavegacion.Dashboard); await Grupo("Planificación", "planificacion", MenuNavegacion.Planificacion); }
+    @if (puedeEditar) { await Grupo("Administración", "administracion", MenuNavegacion.Administracion); }
+    @if (esAdmin) { await Grupo("Sistema", "usuarios", MenuNavegacion.Sistema); }
+</ul>

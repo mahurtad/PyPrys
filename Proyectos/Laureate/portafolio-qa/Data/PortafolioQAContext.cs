@@ -32,6 +32,7 @@ public class PortafolioQAContext : IdentityDbContext<UsuarioApp>
     public DbSet<SquashCampana> SquashCampanas => Set<SquashCampana>();
     public DbSet<SquashIteracion> SquashIteraciones => Set<SquashIteracion>();
     public DbSet<SquashCaso> SquashCasos => Set<SquashCaso>();
+    public DbSet<SquashModulo> SquashModulos => Set<SquashModulo>();
 
     private void ValidarActividades()
     {
@@ -222,6 +223,16 @@ public class PortafolioQAContext : IdentityDbContext<UsuarioApp>
             .HasForeignKey(k => k.RecursoQAId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<SquashCaso>().HasIndex(k => new { k.SquashIteracionId, k.SquashItemId }).IsUnique();
         modelBuilder.Entity<SquashCaso>().Property(k => k.Porcentaje).HasPrecision(5, 2);
+        modelBuilder.Entity<SquashModulo>()
+            .HasOne(m => m.SquashIteracion).WithMany(i => i.Modulos)
+            .HasForeignKey(m => m.SquashIteracionId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<SquashModulo>().HasIndex(m => new { m.SquashIteracionId, m.SquashId }).IsUnique();
+        // Relación módulo ↔ ítem. La tabla de unión borra en cascada por el módulo; por el caso no (SQL Server no admite dos rutas en cascada).
+        modelBuilder.Entity<SquashModulo>()
+            .HasMany(m => m.Casos).WithMany(k => k.Modulos)
+            .UsingEntity<Dictionary<string, object>>("SquashModuloCaso",
+                j => j.HasOne<SquashCaso>().WithMany().HasForeignKey("CasoId").OnDelete(DeleteBehavior.NoAction),
+                j => j.HasOne<SquashModulo>().WithMany().HasForeignKey("ModuloId").OnDelete(DeleteBehavior.Cascade));
 
         modelBuilder.Entity<AcuerdoActividad>().HasKey(x => new { x.AcuerdoId, x.ActividadId });
         modelBuilder.Entity<AcuerdoActividad>()

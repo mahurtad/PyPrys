@@ -52,7 +52,7 @@
     </div>
     <div class="col-md-6 mb-3">
         <label class="form-label">Avance</label>
-        <div class="progress" role="progressbar" aria-valuenow="@Model.Avance" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress progress-texto" role="progressbar" aria-valuenow="@Model.Avance" aria-valuemin="0" aria-valuemax="100">
             <div class="progress-bar" style="width:@Model.Avance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;@(Model.Avance > 0 ? "min-width:3rem" : "")">@Model.Avance.ToString("0.#")%</div>
         </div>
         <div class="form-text">Se calcula a partir del avance de las actividades no canceladas.</div>

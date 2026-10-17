@@ -1,0 +1,68 @@
+/* Personalizaciones sobre Tabler 1.6.1 (cargar después de tabler.min.css y site.css). */
+
+/* Layout */
+.page-wrapper { min-width: 0; }
+.page-body { overflow-x: clip; }
+.page-wrapper > .navbar > .container-fluid { flex-wrap: nowrap; }
+.page-wrapper > .navbar .ms-auto { flex: 0 0 auto; }
+.page-titulo { font-size: 1.125rem; font-weight: 600; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usuario-nombre { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navbar-vertical .navbar-brand a { color: inherit; text-decoration: none; }
+.footer { position: static; line-height: normal; white-space: normal; }
+main:focus { outline: none; }
+
+/* Menú lateral: los subelementos muestran icono + texto con sangría moderada */
+.navbar-vertical .dropdown-menu .dropdown-item { display: flex; align-items: center; padding-inline-start: 1.25rem; }
+.navbar-vertical .dropdown-menu .dropdown-item .nav-link-icon { flex: 0 0 auto; }
+.navbar-vertical .nav-link-icon svg { width: 1.25rem; height: 1.25rem; }
+.navbar-vertical .dropdown-item.active { font-weight: 600; }
+
+/* Escritorio: menú plegado por completo para ganar espacio (tablas, Gantt) */
+@media (min-width: 992px) {
+    html.menu-plegado .navbar-vertical.navbar-expand-lg { display: none; }
+    html.menu-plegado .navbar-expand-lg.navbar-vertical ~ .page-wrapper { margin-inline-start: 0; }
+}
+
+/* Portafolio: tarjetas que se adaptan al ancho disponible (con o sin menú lateral) */
+.portafolio-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); }
+.proyecto-card .card-title { font-size: 1.05rem; line-height: 1.3; overflow-wrap: anywhere; }
+.proyecto-card .proyecto-datos { display: grid; grid-template-columns: auto 1fr; gap: .15rem .75rem; margin: 0; font-size: .85rem; }
+.proyecto-card .proyecto-datos dt { font-weight: 500; color: var(--tblr-secondary); }
+.proyecto-card .proyecto-datos dd { margin: 0; overflow-wrap: anywhere; }
+.proyecto-card .proyecto-avance { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Tablas y chips */
+.chips-recursos { max-width: 22rem; }
+.chip-recurso { white-space: normal; }
+
+/* Insignias de estado: Tabler no define color de texto para bg-* de Bootstrap; se fuerza contraste suficiente */
+.badge.bg-secondary, .badge.bg-success, .badge.bg-danger, .badge.bg-dark, .badge.bg-primary { color: #fff; }
+.badge.bg-secondary { background-color: #626976 !important; }
+.badge.bg-success { background-color: #2b8a3e !important; }
+.badge.bg-warning, .badge.bg-info, .badge.bg-light { color: #1d273b; }
+
+/* Etiquetas pastel de defectos (texto + número, el color es solo apoyo) */
+.tag-defecto { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .6rem; border-radius: 999px; font-size: .8rem; border: 1px solid transparent; color: #1d273b; }
+.tag-defecto b { font-variant-numeric: tabular-nums; }
+.tag-abiertos { background: #e7ebf3; border-color: #d3dae8; }
+.tag-bloqueante { background: #fde4e4; border-color: #f5c9c9; }
+.tag-nobloqueante { background: #fdf0d9; border-color: #f3ddb3; }
+.tag-mejora { background: #e0f0e6; border-color: #c4e0cf; }
+.tag-sinclasificar { background: #eee6f6; border-color: #dccdee; }
+.tag-retest { background: #dfeefa; border-color: #c2dcf2; }
+
+/* Barras de progreso con el porcentaje dentro */
+.progress-texto { height: 1.4rem; position: relative; }
+.progress-texto .progress-bar { font-size: .8rem; font-weight: 600; line-height: 1.4rem; }
+.progress-texto .progress-bar.bg-warning { color: #1d273b; }
+.progress-texto .progress-cero { position: absolute; inset: 0 auto 0 .5rem; font-size: .8rem; font-weight: 600; line-height: 1.4rem; color: #1d273b; }
+
+/* Filas desplegables de tabla (Capacidad): sin animación de altura, que en <tr> provoca retraso al cerrar */
+tr.collapsing { transition: none !important; }
+
+/* Usuario en cabecera: el nombre no recorta descendentes (g, p, y) y el rol no se solapa */
+.usuario-nombre { line-height: 1.35; }
+
+/* Resumen por módulo (Squash) */
+.tabla-modulos > thead > tr > th:first-child, .tabla-modulos > tbody > tr > td:first-child { padding-left: 1rem; }
+.tabla-modulos > thead > tr > th:last-child, .tabla-modulos > tbody > tr > td:last-child { padding-right: 1rem; }

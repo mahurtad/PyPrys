@@ -2,7 +2,8 @@ namespace PortafolioQA.Services.Integrations;
 
 public record SquashProyectoDto(int Id, string Nombre);
 public record SquashCasoDto(int ItemId, string Nombre, string Estado, string? AsignadoLogin, DateTime? UltimaEjecucion, int? TestCaseId = null);
-public record SquashIteracionDto(int Id, string Nombre, string? Estado, List<SquashCasoDto> Casos);
+public record SquashModuloDto(int Id, string Nombre, List<int> ItemIds);
+public record SquashIteracionDto(int Id, string Nombre, string? Estado, List<SquashCasoDto> Casos, List<SquashModuloDto>? Modulos = null);
 public record SquashCampanaDto(int Id, string Nombre, string? Estado, List<SquashIteracionDto> Iteraciones);
 
 public class ResultadoSquash<T>

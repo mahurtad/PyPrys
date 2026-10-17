@@ -191,3 +191,37 @@ Toda la aplicación exige iniciar sesión (cuentas locales con ASP.NET Core Iden
 
 - Squash TM: cliente REST, vínculo de proyecto y sincronización de ejecución.
 - Bugzilla: consulta REST de defectos por producto y enlaces desde el detalle.
+
+
+## Dashboard gerencial (`/Dashboard`)
+
+Lectura por proyecto que integra Portafolio, Squash TM y Bugzilla. **Solo lee**: usa los datos de Squash ya sincronizados (no llama a Squash ni
+sincroniza) y consulta Bugzilla por GET con caché de 60 s (15 s si falla) y como máximo 4 consultas simultáneas, una por producto distinto.
+Todos los roles autenticados lo ven (Lector incluido). Código: `Services/Dashboard/` y `Pages/Dashboard/`.
+
+**Presentación**: usa el mismo `_Layout` y menú de Tabler 1.6.1 que el resto de la aplicación (sin layout aparte, sin AdminLTE ni Bootstrap duplicado;
+el CSS propio es `wwwroot/css/dashboard.css`, cargado solo aquí mediante la sección `Styles`). Los gráficos (barras apiladas y dona) son HTML/CSS
+renderizado en servidor: sin biblioteca de gráficos ni JavaScript y sin licencias adicionales. Cada gráfico lleva leyenda, cifras escritas,
+`aria-label` y un resumen en texto para lectores de pantalla. Capturas de referencia con datos de demostración en `docs/dashboard/`.
+
+**Alcance** (el mismo en indicadores, gráficos por estado y tipo, tabla y alertas): todos los proyectos del catálogo de la institución elegida (o de
+todas), activos o no y de cualquier estado, como el Portafolio. Los gráficos de pruebas y defectos muestran solo los proyectos con cifras de esa fuente
+y listan debajo el resto con su motivo. Las tarjetas por institución cuentan siempre el portafolio completo; al elegir una se filtra todo lo demás.
+«Con defectos bloqueantes» solo se evalúa donde Bugzilla respondió.
+
+**Fórmulas** (por proyecto; nunca se suman ni promedian entre proyectos; no hay semáforo ni índice global):
+
+- Avance del proyecto: valor guardado en Portafolio (con Squash, promedio del peso de cada caso único; sin Squash, actividades ponderadas). No es % ejecutado.
+- Casos totales: casos de prueba únicos y vigentes que cuentan (excluye No ejecutable, Omitido, Cancelado, No encontrado, que se informan aparte).
+- Ejecutados = aprobados (SUCCESS, SETTLED) + fallidos (FAILURE, ERROR) + advertencia (WARNING). Bloqueados = BLOCKED (no ejecutados). En curso = RUNNING; sin ejecutar = el resto (READY, NOT_RUN, desconocidos). Los seis estados suman los casos totales.
+- % ejecutado = ejecutados / casos. Tasa de aprobación = aprobados / ejecutados (sin ejecuciones: «Sin ejecuciones», no 0 %).
+- Defectos abiertos = estado distinto de RESOLVED, VERIFIED y CLOSED; bloqueantes / no bloqueantes / mejoras / sin clasificar según severidad (reglas de `DetalleModel.ResumenDefectos`); pendientes de retest = RESOLVED + FIXED; cada defecto cuenta una vez por número.
+- Atención requerida (hechos): fecha comprometida vencida con proyecto no Cerrado ni Cancelado; casos bloqueados > 0; defectos bloqueantes abiertos > 0; pendientes de retest > 0.
+
+**Estados de fuente**: Con datos (incluye ceros reales), Sin datos, Sin vínculo, Integración no configurada, Error. Una fuente con error no genera cifras ni hechos y el resto sigue.
+Bugzilla responde lista vacía ante un producto inexistente o sin permiso; con 0 defectos se verifica que el producto exista (`product?names=`) y, si no, se marca Error.
+
+**Filtros**: institución (vista general) y proyecto (abre el resumen). Campaña, iteración y módulo (suite de Squash) solo afectan a las pruebas, por ID y por la
+jerarquía real sincronizada; Bugzilla no informa esa relación, por lo que los defectos son siempre del producto completo.
+La API de Squash expone `issues` por campaña, iteración y suite, pero no se usa: exigiría consultas por iteración en cada visita y confirmar que el bugtracker
+de Squash es el mismo Bugzilla del producto.

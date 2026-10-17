@@ -1,0 +1,644 @@
+@page
+@using System.Globalization
+@using PortafolioQA.Services
+@using PortafolioQA.Models
+@using PortafolioQA.Pages.Portafolio
+@model PortafolioQA.Pages.Dashboard.IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var r = Model.Resultado;
+
+    string Pct(decimal? v) => v is null ? "—" : $"{v:0.#} %";
+    string Fecha(DateTime? f) => f is null ? "—" : f.Value.ToString("dd/MM/yyyy HH:mm");
+    string Ancho(double v) => v.ToString("0.##", CultureInfo.InvariantCulture) + "%";
+    string Porcentaje(int parte, int total) => total == 0 ? "0" : Math.Round(parte * 100.0 / total).ToString(CultureInfo.InvariantCulture);
+
+    // Colores como variables CSS (definidas en dashboard.css). El color solo refuerza: cada valor también está escrito.
+    string ColorEstado(EstadoProyecto e) => e switch
+    {
+        EstadoProyecto.Planificado => "var(--c-planificado)",
+        EstadoProyecto.EnCertificacion => "var(--c-certificacion)",
+        EstadoProyecto.Cerrado => "var(--c-cerrado)",
+        _ => "var(--c-cancelado)"
+    };
+    var estados = new[] { EstadoProyecto.Planificado, EstadoProyecto.EnCertificacion, EstadoProyecto.Cerrado, EstadoProyecto.Cancelado };
+    var tipos = new[] { TipoIniciativa.Proyecto, TipoIniciativa.RequerimientoNoBAU, TipoIniciativa.BAU };
+    var coloresTipo = new[] { "var(--c-tipo-1)", "var(--c-tipo-2)", "var(--c-tipo-3)" };
+
+    var segmentosPruebas = new (string Texto, Func<ResumenCertificacion, int> Valor, string Color)[]
+    {
+        ("Aprobados", c => c.Aprobados, "var(--c-aprobado)"),
+        ("Fallidos", c => c.Fallidos, "var(--c-fallido)"),
+        ("Con advertencia", c => c.ConAdvertencia, "var(--c-advertencia)"),
+        ("Bloqueados", c => c.Bloqueados, "var(--c-bloqueado)"),
+        ("En curso", c => c.EnCurso, "var(--c-curso)"),
+        ("Sin ejecutar", c => c.SinEjecutar, "var(--c-sin-ejecutar)")
+    };
+    var segmentosDefectos = new (string Texto, Func<DetalleModel.ResumenDefectos, int> Valor, string Color)[]
+    {
+        ("Bloqueantes", d => d.Bloqueantes, "var(--c-bloqueante)"),
+        ("Otros abiertos", d => d.Abiertos - d.Bloqueantes, "var(--c-abierto)"),
+        ("Pendientes de retest", d => d.PendienteRetest, "var(--c-retest)")
+    };
+
+    async Task Insignia(string origen, EstadoDeFuente f)
+    {
+        <span class="badge @f.Badge" title="@(f.Detalle ?? f.Etiqueta)">@origen: @f.Etiqueta</span>
+    }
+
+    // Tarjeta de cifra (componente "stat card" de Tabler).
+    async Task Metrica(string icono, string fondo, string texto, string numero, string? ayuda = null)
+    {
+        <div class="card card-sm h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto"><span class="avatar @fondo"><partial name="_Icono" model="icono" /></span></div>
+                    <div class="col">
+                        <div class="fw-bold fs-3 lh-1">@numero</div>
+                        <div class="text-secondary">@texto</div>
+                        @if (ayuda is not null) { <div class="text-secondary small">@ayuda</div> }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    // Barra apilada: cada segmento mide valor/escala; el texto equivalente va en aria-label y en los títulos.
+    async Task Apilada(string aria, IEnumerable<(string Texto, int Valor, string Color)> segmentos, int escala, bool fina = false)
+    {
+        <div class="apilada @(fina ? "fina" : "")" role="img" aria-label="@aria">
+            @foreach (var s in segmentos.Where(s => s.Valor > 0))
+            {
+                <span style="width:@Ancho(escala == 0 ? 0 : s.Valor * 100.0 / escala);background:@s.Color" title="@s.Texto: @s.Valor"></span>
+            }
+        </div>
+    }
+
+    async Task LeyendaPruebas(bool conAdvertencia)
+    {
+        <ul class="dash-leyenda en-linea">
+            @foreach (var s in segmentosPruebas.Where(s => conAdvertencia || s.Texto != "Con advertencia"))
+            {
+                <li><i class="punto" style="background:@s.Color"></i>@s.Texto</li>
+            }
+        </ul>
+    }
+
+    // Proyectos que no entran en un gráfico, agrupados por el motivo de su fuente (sin vínculo, sin datos, no configurada, error).
+    async Task SinCifras(string fuente, IEnumerable<(string Etiqueta, string Nombre, string? Detalle)> items)
+    {
+        var lista = items.ToList();
+        if (lista.Count == 0) { return; }
+        <details class="sin-cifras">
+            <summary>@lista.Count proyecto(s) sin cifras de @fuente (no se grafican)</summary>
+            <ul>
+                @foreach (var g in lista.GroupBy(x => x.Etiqueta))
+                {
+                    <li><strong>@g.Key</strong> (@g.Count()): @string.Join(", ", g.Select(x => x.Nombre))@if (g.Key == "Error" && g.Select(x => x.Detalle).FirstOrDefault(d => d != null) is string motivo) { <span> — @motivo</span> }</li>
+                }
+            </ul>
+        </details>
+    }
+
+    async Task ResumenNodo(ResumenCertificacion c)
+    {
+        if (c.Total == 0)
+        {
+            <span class="text-secondary">Sin casos que cuenten@(c.Excluidos > 0 ? $" ({c.Excluidos} excluido(s))" : "")</span>
+        }
+        else
+        {
+            <span>Casos <strong>@c.Total</strong> · Ejec. <strong>@Pct(c.PorcentajeEjecutado)</strong> · Aprob. <strong>@Pct(c.TasaAprobacion)</strong> · Fall. <strong>@c.Fallidos</strong> · Bloq. <strong>@c.Bloqueados</strong></span>
+        }
+    }
+
+    var detalle = r?.Detalle;
+    var p = detalle?.Proyecto;
+    var filtros = r?.Filtros;
+    var hayAlcance = detalle is not null && (detalle.CampanaId != null || detalle.IteracionId != null || detalle.ModuloId != null);
+    var proyectosSelect = r is null ? new() : r.Proyectos.Where(x => filtros!.InstitucionId == null || x.InstitucionId == filtros.InstitucionId).ToList();
+    var nombreInstitucion = r?.Instituciones.FirstOrDefault(i => i.Id == filtros?.InstitucionId)?.Nombre;
+    var alcanceTexto = nombreInstitucion ?? "Todas las instituciones";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+}
+
+@if (Model.ErrorGeneral is not null)
+{
+    <div class="alert alert-danger" role="alert">@Model.ErrorGeneral</div>
+}
+
+@if (r is not null)
+{
+    var res = r.Resumen;
+    var filas = r.Filas;
+    var conPruebas = filas.Where(f => f.Certificacion is { Total: > 0 }).ToList();
+    var conDefectos = filas.Where(f => f.Defectos is not null).ToList();
+    var escalaDefectos = Math.Max(1, conDefectos.Select(f => f.Defectos!.Abiertos + f.Defectos.PendienteRetest).DefaultIfEmpty(0).Max());
+    var conAtencion = filas.Where(f => f.Atencion.Count > 0).OrderByDescending(f => f.Atencion.Count).ThenBy(f => f.Nombre).ToList();
+    var conFuenteIncompleta = filas.Where(f => f.Incompleto.Count > 0).ToList();
+
+    <div class="dash">
+    @foreach (var aviso in r.Avisos)
+    {
+        <div class="alert alert-warning py-2" role="alert">@aviso</div>
+    }
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 d-print-none">
+        <h1 class="h3 mb-0">Proyectos</h1>
+    </div>
+
+    @* ---- Indicadores ---- *@
+    <section aria-label="Indicadores del portafolio" class="mb-3">
+        <div class="row row-cards">
+            <div class="col-sm-6 col-lg-3">
+                <div class="card kpi h-100"><div class="card-status-top bg-primary"></div><div class="card-body">
+                    <div class="subheader">Total de proyectos</div>
+                    <div class="h1 mb-1">@res.Total</div>
+                    <div class="text-secondary small">@alcanceTexto · incluye cerrados, cancelados e inactivos</div>
+                </div></div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card kpi h-100"><div class="card-status-top bg-primary"></div><div class="card-body">
+                    <div class="subheader">En certificación</div>
+                    <div class="h1 mb-1">@res.EnCertificacion</div>
+                    <div class="text-secondary small">Proyectos con estado «En certificación» en Portafolio</div>
+                </div></div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card kpi h-100"><div class="card-status-top bg-orange"></div><div class="card-body">
+                    <div class="subheader">Proyectos vencidos</div>
+                    <div class="h1 mb-1">@res.Vencidos</div>
+                    <div class="text-secondary small">Ni cerrados ni cancelados, con fecha comprometida anterior a hoy</div>
+                </div></div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card kpi h-100"><div class="card-status-top bg-green"></div><div class="card-body">
+                    <div class="subheader">Cerrados</div>
+                    <div class="h1 mb-1">@res.Estado(EstadoProyecto.Cerrado)</div>
+                    <div class="text-secondary small">Proyectos con estado «Cerrado» en Portafolio</div>
+                </div></div>
+            </div>
+        </div>
+    </section>
+
+    @* ---- Instituciones ---- *@
+    <section aria-labelledby="titulo-instituciones" class="mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
+            <h3 class="h3 mb-0" id="titulo-instituciones">Instituciones</h3>
+            <span class="text-secondary small">Selecciona una para filtrar todo el Dashboard · las tarjetas siempre muestran el portafolio completo</span>
+        </div>
+        @if (r.TarjetasInstituciones.Count == 0)
+        {
+            <div class="card card-body text-secondary">No hay instituciones registradas en el catálogo.</div>
+        }
+        else
+        {
+            <div class="row row-cards">
+                @foreach (var t in r.TarjetasInstituciones)
+                {
+                    var seleccionada = filtros!.InstitucionId == t.Id;
+                    <div class="col-md-6 col-xl-3">
+                        <a class="card card-link card-link-pop tarjeta-institucion h-100 @(seleccionada ? "seleccionada" : "")"
+                           href="@(seleccionada ? Url.Page("/Dashboard/Index") : Url.Page("/Dashboard/Index", new { InstitucionId = t.Id }))"
+                           aria-current="@(seleccionada ? "true" : null)"
+                           title="@(seleccionada ? "Quitar el filtro de institución" : "Filtrar por esta institución")">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <span class="nombre">@t.Nombre@if (!t.Activa) { <span class="badge text-bg-secondary ms-1">Inactiva</span> }</span>
+                                    <span class="cantidad" aria-label="@t.Proyectos proyecto(s)">@t.Proyectos</span>
+                                </div>
+                                <div class="my-3">
+                                    @{ await Apilada($"{t.Nombre}: " + string.Join(", ", estados.Select(e => $"{t.Estado(e)} {e.Texto().ToLowerInvariant()}")),
+                                           estados.Select(e => (e.Texto(), t.Estado(e), ColorEstado(e))), t.Proyectos, fina: true); }
+                                </div>
+                                <div class="text-secondary small">
+                                    @if (t.Proyectos == 0) { <text>Sin proyectos</text> }
+                                    else { <text>@string.Join(" · ", estados.Where(e => t.Estado(e) > 0).Select(e => $"{t.Estado(e)} {e.Texto().ToLowerInvariant()}"))</text> }
+                                </div>
+                                <div class="small text-primary mt-2">@(seleccionada ? "Filtro activo · quitar" : "Ver proyectos →")</div>
+                            </div>
+                        </a>
+                    </div>
+                }
+            </div>
+            <ul class="dash-leyenda en-linea" aria-label="Colores de estado">
+                @foreach (var e in estados) { <li><i class="punto" style="background:@ColorEstado(e)"></i>@e.Texto()</li> }
+            </ul>
+        }
+    </section>
+
+    @if (res.Total == 0)
+    {
+        <div class="card card-body text-secondary mb-3">No hay proyectos para el alcance elegido (@alcanceTexto).</div>
+    }
+    else
+    {
+        @* ---- Proyectos por estado y por tipo ---- *@
+        <div class="row row-cards mb-3">
+            <div class="col-lg-7">
+                <section class="card h-100" aria-labelledby="titulo-estados">
+                    <div class="card-header"><h3 class="card-title" id="titulo-estados">Proyectos por estado</h3><div class="card-actions text-secondary small">@alcanceTexto</div></div>
+                    <div class="card-body">
+                        <p class="visually-hidden">Proyectos por estado en @alcanceTexto: @string.Join(", ", estados.Select(e => $"{res.Estado(e)} {e.Texto().ToLowerInvariant()}")) (total @res.Total).</p>
+                        @foreach (var e in estados)
+                        {
+                            var n = res.Estado(e);
+                            <div class="fila-barra">
+                                <span>@e.Texto()</span>
+                                @{ await Apilada($"{e.Texto()}: {n} de {res.Total} proyectos", new[] { (e.Texto(), n, ColorEstado(e)) }, res.Total); }
+                                <span class="valor">@n <small>· @Porcentaje(n, res.Total) %</small></span>
+                            </div>
+                        }
+                    </div>
+                </section>
+            </div>
+            <div class="col-lg-5">
+                <section class="card h-100" aria-labelledby="titulo-tipos">
+                    <div class="card-header"><h3 class="card-title" id="titulo-tipos">Proyectos por tipo de iniciativa</h3><div class="card-actions text-secondary small">@alcanceTexto</div></div>
+                    <div class="card-body">
+                        @{
+                            var acumulado = 0.0;
+                            var tramos = new List<string>();
+                            for (var i = 0; i < tipos.Length; i++)
+                            {
+                                var inicio = acumulado;
+                                acumulado += res.Tipo(tipos[i]) * 100.0 / res.Total;
+                                tramos.Add($"{coloresTipo[i]} {inicio.ToString("0.###", CultureInfo.InvariantCulture)}% {acumulado.ToString("0.###", CultureInfo.InvariantCulture)}%");
+                            }
+                            var textoTipos = string.Join(", ", tipos.Select(t => $"{res.Tipo(t)} {t.Texto()}"));
+                        }
+                        <div class="dona-caja">
+                            <div class="dona" style="background:conic-gradient(@string.Join(",", tramos))" role="img" aria-label="Proyectos por tipo de iniciativa: @textoTipos (total @res.Total)">
+                                <div class="hueco"><strong>@res.Total</strong><span class="text-secondary small">proyectos</span></div>
+                            </div>
+                            <ul class="dash-leyenda">
+                                @for (var i = 0; i < tipos.Length; i++)
+                                {
+                                    <li><i class="punto" style="background:@coloresTipo[i]"></i>@tipos[i].Texto()<b>@res.Tipo(tipos[i])</b></li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        @* ---- Pruebas (Squash TM) y defectos (Bugzilla) por proyecto ---- *@
+        <div class="row row-cards mb-3">
+            <div class="col-lg-6">
+                <section class="card h-100" aria-labelledby="titulo-pruebas">
+                    <div class="card-header"><h3 class="card-title" id="titulo-pruebas">Certificación · estado de las pruebas</h3><div class="card-actions"><span class="badge bg-blue-lt">Squash TM</span></div></div>
+                    <div class="card-body">
+                        <div class="text-secondary small">Casos únicos por proyecto (100 % = casos que cuentan) · @conPruebas.Count de @res.Total proyecto(s) con casos · fotografía de la última sincronización</div>
+                        @if (conPruebas.Count == 0)
+                        {
+                            <p class="text-secondary my-4">Ningún proyecto del alcance tiene casos sincronizados de Squash TM.</p>
+                        }
+                        else
+                        {
+                            <p class="visually-hidden">Estado de las pruebas por proyecto:
+                                @foreach (var f in conPruebas) { var c = f.Certificacion!; <text>@f.Nombre: @string.Join(", ", segmentosPruebas.Select(s => $"{s.Valor(c)} {s.Texto.ToLowerInvariant()}")) (@c.Total casos). </text> }
+                            </p>
+                            @foreach (var f in conPruebas)
+                            {
+                                var c = f.Certificacion!;
+                                <div class="fila-apilada">
+                                    <div class="rotulo">
+                                        <a href="@Url.Page("/Dashboard/Index", new { InstitucionId = filtros!.InstitucionId, ProyectoId = f.Id })#resumen-proyecto">@f.Nombre</a>
+                                        <span>@(c.Total + " casos")@(f.Squash.Estado != EstadoFuente.Ok ? " · " + f.Squash.Etiqueta.ToLowerInvariant() : "")</span>
+                                    </div>
+                                    @{ await Apilada($"{f.Nombre}: " + string.Join(", ", segmentosPruebas.Select(s => $"{s.Valor(c)} {s.Texto.ToLowerInvariant()}")),
+                                           segmentosPruebas.Select(s => (s.Texto, s.Valor(c), s.Color)), c.Total); }
+                                    <div class="text-secondary small mt-1">
+                                        @string.Join(" · ", segmentosPruebas.Where(s => s.Valor(c) > 0).Select(s => $"{s.Valor(c)} {s.Texto.ToLowerInvariant()}"))
+                                    </div>
+                                </div>
+                            }
+                            await LeyendaPruebas(conPruebas.Any(f => f.Certificacion!.ConAdvertencia > 0));
+                        }
+                        @{ await SinCifras("Squash TM", filas.Where(f => f.Certificacion is not { Total: > 0 }).Select(f => (f.Squash.Etiqueta, f.Nombre, f.Squash.Detalle))); }
+                    </div>
+                </section>
+            </div>
+            <div class="col-lg-6">
+                <section class="card h-100" aria-labelledby="titulo-defectos">
+                    <div class="card-header"><h3 class="card-title" id="titulo-defectos">Defectos abiertos y retest</h3><div class="card-actions"><span class="badge bg-blue-lt">Bugzilla</span></div></div>
+                    <div class="card-body">
+                        <div class="text-secondary small">Defectos únicos por proyecto (producto completo) · @conDefectos.Count de @res.Total proyecto(s) con Bugzilla consultado · el retest no está dentro de los abiertos</div>
+                        @if (conDefectos.Count == 0)
+                        {
+                            <p class="text-secondary my-4">Ningún proyecto del alcance tiene cifras de Bugzilla.</p>
+                        }
+                        else
+                        {
+                            <p class="visually-hidden">Defectos por proyecto:
+                                @foreach (var f in conDefectos) { var d = f.Defectos!; <text>@f.Nombre: @string.Join(", ", segmentosDefectos.Select(s => $"{s.Valor(d)} {s.Texto.ToLowerInvariant()}")). </text> }
+                            </p>
+                            @foreach (var f in conDefectos)
+                            {
+                                var d = f.Defectos!;
+                                <div class="fila-apilada">
+                                    <div class="rotulo">
+                                        <a href="@Url.Page("/Dashboard/Index", new { InstitucionId = filtros!.InstitucionId, ProyectoId = f.Id })#resumen-proyecto">@f.Nombre</a>
+                                        <span>@d.Abiertos abiertos (@d.Bloqueantes bloq.) · @d.PendienteRetest retest</span>
+                                    </div>
+                                    @{ await Apilada($"{f.Nombre}: " + string.Join(", ", segmentosDefectos.Select(s => $"{s.Valor(d)} {s.Texto.ToLowerInvariant()}")),
+                                           segmentosDefectos.Select(s => (s.Texto, s.Valor(d), s.Color)), escalaDefectos); }
+                                    @if (d.Abiertos == 0 && d.PendienteRetest == 0)
+                                    {
+                                        <div class="text-secondary small mt-1">@(d.Total == 0 ? "Cero real: el producto no tiene defectos registrados." : $"Cero real abiertos: {d.Total} registrado(s), todos cerrados o verificados.")</div>
+                                    }
+                                </div>
+                            }
+                            <ul class="dash-leyenda en-linea">
+                                @foreach (var s in segmentosDefectos) { <li><i class="punto" style="background:@s.Color"></i>@s.Texto</li> }
+                            </ul>
+                        }
+                        @{ await SinCifras("Bugzilla", filas.Where(f => f.Defectos is null).Select(f => (f.Bugzilla.Etiqueta, f.Nombre, f.Bugzilla.Detalle))); }
+                    </div>
+                </section>
+            </div>
+        </div>
+    }
+
+    @if (p is not null)
+    {
+        <section id="resumen-proyecto" class="mb-3" aria-labelledby="titulo-proyecto" tabindex="-1">
+            <div class="d-flex flex-wrap align-items-baseline gap-2 mb-2">
+                <h2 class="h2 mb-0" id="titulo-proyecto">@p.Nombre</h2>
+                <span class="text-secondary">Resumen integrado · @p.Institucion · @p.Estado.Texto()</span>
+            </div>
+
+            @* ---- Atención requerida ---- *@
+            <div class="card mb-3" id="atencion">
+                <div class="card-header"><h3 class="card-title">Atención requerida</h3></div>
+                <div class="card-body">
+                    @if (p.Atencion.Count == 0)
+                    {
+                        <p class="mb-0">No hay hechos comprobables que requieran atención con las fuentes disponibles@(p.Incompleto.Count > 0 ? " (ver información incompleta)" : "").</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var h in p.Atencion)
+                            {
+                                <li class="list-group-item px-0 d-flex gap-2 align-items-start">
+                                    <span class="text-danger icono-atencion"><partial name="_Icono" model='"alerta"' /></span>
+                                    <span>@h.Texto <span class="badge bg-secondary-lt">@h.Fuente</span></span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    @if (p.Incompleto.Count > 0)
+                    {
+                        <div class="alert alert-warning mt-3 mb-0 py-2" role="status">
+                            <strong>Información incompleta:</strong>
+                            <ul class="mb-0">@foreach (var i in p.Incompleto) { <li>@i</li> }</ul>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="row row-cards mb-3">
+                @* ---- Contexto ---- *@
+                <div class="col-12 col-xl-6">
+                    <div class="card h-100">
+                        <div class="card-header"><h3 class="card-title">Contexto (Portafolio)</h3></div>
+                        <div class="card-body">
+                            <dl class="row mb-0 dl-contexto">
+                                <dt class="col-sm-4">Institución</dt><dd class="col-sm-8">@p.Institucion</dd>
+                                <dt class="col-sm-4">Tipo</dt><dd class="col-sm-8">@p.Tipo.Texto()</dd>
+                                <dt class="col-sm-4">Estado</dt><dd class="col-sm-8">@p.Estado.Texto()@(p.Activo ? "" : " · Inactivo")</dd>
+                                <dt class="col-sm-4">BPO</dt><dd class="col-sm-8">@(string.IsNullOrWhiteSpace(p.Bpo) ? "—" : p.Bpo)</dd>
+                                <dt class="col-sm-4">PM</dt><dd class="col-sm-8">@(string.IsNullOrWhiteSpace(p.Pm) ? "—" : p.Pm)</dd>
+                                <dt class="col-sm-4">Líder</dt><dd class="col-sm-8">@(string.IsNullOrWhiteSpace(p.Lider) ? "—" : p.Lider)</dd>
+                                <dt class="col-sm-4">Inicio</dt><dd class="col-sm-8">@p.FechaInicio.ToString("dd/MM/yyyy")</dd>
+                                <dt class="col-sm-4">Fecha comprometida</dt>
+                                <dd class="col-sm-8">@p.FechaFin.ToString("dd/MM/yyyy")@if (p.DiasVencido is int dv) { <span class="badge text-bg-danger ms-1">Vencido hace @dv d</span> }</dd>
+                                <dt class="col-sm-4">Avance del proyecto</dt>
+                                <dd class="col-sm-8">
+                                    <div class="progress progress-sm mb-1" role="progressbar" aria-label="Avance del proyecto" aria-valuenow="@((int)p.Avance)" aria-valuemin="0" aria-valuemax="100">
+                                        <div class="progress-bar" style="width:@Ancho((double)p.Avance)"></div>
+                                    </div>
+                                    @Pct(p.Avance)
+                                </dd>
+                            </dl>
+                            <div class="mt-3"><a class="btn btn-outline-secondary btn-sm" asp-page="/Portafolio/Detalle" asp-route-id="@p.Id">Abrir detalle del proyecto</a></div>
+                        </div>
+                    </div>
+                </div>
+
+                @* ---- Equipo ---- *@
+                <div class="col-12 col-xl-6">
+                    <div class="card h-100">
+                        <div class="card-header"><h3 class="card-title">Equipo QA</h3></div>
+                        @if (p.Equipo.Count == 0)
+                        {
+                            <div class="card-body text-secondary">El proyecto no tiene recursos QA asignados.</div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-vcenter card-table">
+                                    <thead><tr><th scope="col">Recurso</th><th scope="col">Rol</th><th scope="col" class="text-end">Dedicación</th><th scope="col">Periodo</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var m in p.Equipo)
+                                        {
+                                            <tr>
+                                                <td>@m.Nombre@if (m.VigenteHoy) { <span class="badge bg-secondary-lt ms-1">Vigente hoy</span> }</td>
+                                                <td>@m.Rol</td>
+                                                <td class="text-end">@($"{m.Dedicacion:0.#} %")</td>
+                                                <td class="text-nowrap">@m.Inicio.ToString("dd/MM/yy") – @m.Fin.ToString("dd/MM/yy")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="card-footer small text-secondary">Dedicación = % de cada asignación; no se suma entre personas ni entre proyectos.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* ---- Certificación ---- *@
+            <div class="card mb-3" id="certificacion">
+                <div class="card-header">
+                    <h3 class="card-title">Certificación (Squash TM)</h3>
+                    <div class="card-actions small">@{ await Insignia("Squash TM", p.Squash); } <span class="text-secondary">Sincronizado: @Fecha(p.Squash.ActualizadoEn)</span></div>
+                </div>
+                <div class="card-body">
+                    @if (hayAlcance)
+                    {
+                        <div class="alert alert-info py-2" role="status">Alcance: @detalle!.EtiquetaAlcance. Las cifras de esta sección y del desglose corresponden solo a esa selección.</div>
+                    }
+                    @if (p.Certificacion is null || p.Certificacion.Total == 0)
+                    {
+                        <p class="mb-0 text-secondary">@p.Squash.Etiqueta@(p.Squash.Detalle is null ? "" : ": " + p.Squash.Detalle)</p>
+                    }
+                    else
+                    {
+                        var c = p.Certificacion;
+                        <div class="row row-cards">
+                            <div class="col-6 col-lg"> @{ await Metrica("lista-check", "bg-secondary-lt", "Casos totales", c.Total.ToString(), c.Excluidos > 0 ? $"{c.Excluidos} excluido(s)" : null); } </div>
+                            <div class="col-6 col-lg"> @{ await Metrica("check", "bg-blue-lt", "Ejecutados", c.Ejecutados.ToString(), c.ConAdvertencia > 0 ? $"{c.ConAdvertencia} con advertencia" : null); } </div>
+                            <div class="col-6 col-lg"> @{ await Metrica("check", "bg-green-lt", "Aprobados", c.Aprobados.ToString()); } </div>
+                            <div class="col-6 col-lg"> @{ await Metrica("cerrar", "bg-red-lt", "Fallidos", c.Fallidos.ToString()); } </div>
+                            <div class="col-6 col-lg"> @{ await Metrica("ban", "bg-orange-lt", "Bloqueados", c.Bloqueados.ToString()); } </div>
+                            <div class="col-6 col-lg"> @{ await Metrica("retest", "bg-azure-lt", "En curso", c.EnCurso.ToString(), $"{c.SinEjecutar} sin ejecutar"); } </div>
+                        </div>
+                        <div class="mt-3">
+                            @{ await Apilada("Estado de las pruebas: " + string.Join(", ", segmentosPruebas.Select(s => $"{s.Valor(c)} {s.Texto.ToLowerInvariant()}")),
+                                   segmentosPruebas.Select(s => (s.Texto, s.Valor(c), s.Color)), c.Total); }
+                            @{ await LeyendaPruebas(c.ConAdvertencia > 0); }
+                        </div>
+                        <div class="row g-3 mt-1">
+                            <div class="col-12 col-md-6">
+                                <div class="d-flex justify-content-between"><span>% ejecutado <small class="text-secondary">(ejecutados / casos)</small></span><strong>@Pct(c.PorcentajeEjecutado)</strong></div>
+                                <div class="progress progress-sm" role="progressbar" aria-label="Porcentaje ejecutado" aria-valuenow="@((int)(c.PorcentajeEjecutado ?? 0))" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar" style="width:@Ancho((double)(c.PorcentajeEjecutado ?? 0))"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="d-flex justify-content-between"><span>Tasa de aprobación <small class="text-secondary">(aprobados / ejecutados)</small></span><strong>@(c.TasaAprobacion is null ? "Sin ejecuciones" : Pct(c.TasaAprobacion))</strong></div>
+                                <div class="progress progress-sm" role="progressbar" aria-label="Tasa de aprobación" aria-valuenow="@((int)(c.TasaAprobacion ?? 0))" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-success" style="width:@Ancho((double)(c.TasaAprobacion ?? 0))"></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* ---- Defectos ---- *@
+            <div class="card mb-3" id="defectos">
+                <div class="card-header">
+                    <h3 class="card-title">Defectos (Bugzilla)</h3>
+                    <div class="card-actions small">@{ await Insignia("Bugzilla", p.Bugzilla); } <span class="text-secondary">Consultado: @Fecha(p.Bugzilla.ActualizadoEn)</span></div>
+                </div>
+                <div class="card-body">
+                    @if (p.Productos.Count > 0)
+                    {
+                        <p class="small text-secondary">Producto(s): @string.Join(", ", p.Productos).@if (hayAlcance) { <text> Bugzilla no informa campaña, iteración ni módulo: las cifras son del producto completo y no cambian con esos filtros.</text> }</p>
+                    }
+                    @if (p.Defectos is null)
+                    {
+                        <p class="mb-0 text-secondary">@p.Bugzilla.Etiqueta@(p.Bugzilla.Detalle is null ? "" : ": " + p.Bugzilla.Detalle)</p>
+                    }
+                    else
+                    {
+                        var d = p.Defectos;
+                        <div class="row row-cards">
+                            <div class="col-6 col-lg"> @{ await Metrica("bug", "bg-secondary-lt", "Abiertos", d.Abiertos.ToString(), $"de {d.Total} registrados"); } </div>
+                            <div class="col-6 col-lg"> @{ await Metrica("ban", "bg-red-lt", "Bloqueantes", d.Bloqueantes.ToString(), "abiertos"); } </div>
+                            <div class="col-6 col-lg"> @{ await Metrica("bug", "bg-blue-lt", "No bloqueantes", d.NoBloqueantes.ToString(), "abiertos"); } </div>
+                            <div class="col-6 col-lg"> @{ await Metrica("lista-check", "bg-azure-lt", "Mejoras", d.Mejoras.ToString(), "abiertas"); } </div>
+                            <div class="col-12 col-lg"> @{ await Metrica("retest", "bg-teal-lt", "Pendientes de retest", d.PendienteRetest.ToString(), "RESOLVED + FIXED"); } </div>
+                        </div>
+                        @if (d.SinClasificar > 0)
+                        {
+                            <p class="small text-secondary mt-2 mb-0">@d.SinClasificar defecto(s) abierto(s) con severidad no clasificada (no son bloqueantes, no bloqueantes ni mejoras).</p>
+                        }
+                        @if (d.Total == 0)
+                        {
+                            <p class="small text-secondary mt-2 mb-0">Cero real: Bugzilla respondió y el producto no tiene defectos registrados.</p>
+                        }
+                        @foreach (var (titulo, lista) in new[] { ("Bloqueantes abiertos", p.DefectosBloqueantes), ("Pendientes de retest", p.DefectosRetest) })
+                        {
+                            if (lista.Count == 0) { continue; }
+                            <h4 class="h4 mt-3">@titulo</h4>
+                            <div class="table-responsive">
+                                <table class="table table-vcenter table-sm mb-0">
+                                    <thead><tr><th scope="col">#</th><th scope="col">Resumen</th><th scope="col">Estado</th><th scope="col">Responsable</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var x in lista)
+                                        {
+                                            <tr>
+                                                <td>@if (x.Url is not null) { <a href="@x.Url" target="_blank" rel="noopener noreferrer">@x.Id</a> } else { @x.Id }</td>
+                                                <td>@x.Titulo</td>
+                                                <td>@x.Estado</td>
+                                                <td>@(x.Responsable ?? "—")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            @* ---- Desglose por campaña / iteración / módulo ---- *@
+            <div class="card mb-3" id="desglose">
+                <div class="card-header"><h3 class="card-title">Detalle por campaña, iteración y módulo</h3></div>
+                <div class="card-body">
+                    @if (detalle!.Campanas.Count == 0)
+                    {
+                        <p class="mb-0 text-secondary">Sin campañas de Squash TM sincronizadas para este proyecto (@p.Squash.Etiqueta).</p>
+                    }
+                    else
+                    {
+                        <p class="small text-secondary">Cada nivel se calcula por separado, contando cada caso una sola vez dentro de ese nivel; por eso los niveles no se suman entre sí.
+                            Un módulo es una suite de Squash: agrupa casos por la relación real de Squash, no por el nombre.</p>
+                        @foreach (var camp in detalle.Campanas)
+                        {
+                            <details class="nodo mb-2" open="@(hayAlcance || detalle.Campanas.Count == 1)">
+                                <summary><span class="fw-semibold">Campaña: @camp.Nombre</span> <span class="small d-block d-md-inline ms-md-2">@{ await ResumenNodo(camp.Certificacion); }</span></summary>
+                                <div class="ms-3 mt-2">
+                                    @if (camp.Iteraciones.Count == 0) { <p class="text-secondary small">Sin iteraciones vigentes.</p> }
+                                    @foreach (var it in camp.Iteraciones)
+                                    {
+                                        <details class="nodo mb-2" open="@(hayAlcance)">
+                                            <summary><span class="fw-semibold">Iteración: @it.Nombre</span> <span class="small d-block d-md-inline ms-md-2">@{ await ResumenNodo(it.Certificacion); }</span></summary>
+                                            <div class="ms-3 mt-2">
+                                                @if (it.Modulos.Count == 0)
+                                                {
+                                                    <p class="text-secondary small mb-0">Esta iteración no tiene módulos (suites) en Squash.</p>
+                                                }
+                                                else
+                                                {
+                                                    <div class="table-responsive">
+                                                        <table class="table table-vcenter table-sm mb-1">
+                                                            <thead><tr><th scope="col">Módulo</th><th scope="col" class="text-end">Casos</th><th scope="col" class="text-end">% ejec.</th><th scope="col" class="text-end">Aprob.</th><th scope="col" class="text-end">Fallidos</th><th scope="col" class="text-end">Bloq.</th></tr></thead>
+                                                            <tbody>
+                                                                @foreach (var m in it.Modulos)
+                                                                {
+                                                                    var mc = m.Certificacion;
+                                                                    <tr>
+                                                                        <td>@m.Nombre</td>
+                                                                        <td class="text-end">@mc.Total</td>
+                                                                        <td class="text-end">@Pct(mc.PorcentajeEjecutado)</td>
+                                                                        <td class="text-end">@Pct(mc.TasaAprobacion)</td>
+                                                                        <td class="text-end">@mc.Fallidos</td>
+                                                                        <td class="text-end">@mc.Bloqueados</td>
+                                                                    </tr>
+                                                                }
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    <p class="small text-secondary mb-0">Casos de la iteración que ninguna suite contiene: @it.CasosSinModulo. Un caso puede estar en varias suites.</p>
+                                                }
+                                            </div>
+                                        </details>
+                                    }
+                                </div>
+                            </details>
+                        }
+                    }
+                </div>
+            </div>
+        </section>
+    }
+    else if (filas.Count > 0)
+    {
+        <p class="text-secondary">Elige un proyecto (en la tabla, en un gráfico o en el filtro) para ver su resumen integrado.</p>
+    }
+
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+}

@@ -24,11 +24,12 @@ public static class SquashSincronizacion
 
         var existentes = await context.SquashCampanas
             .Include(c => c.Iteraciones).ThenInclude(i => i.Casos)
+            .Include(c => c.Iteraciones).ThenInclude(i => i.Modulos).ThenInclude(m => m.Casos)
             .Where(c => c.ProyectoId == proyecto.Id).ToListAsync(ct);
         foreach (var c in existentes)
         {
             c.Vigente = false;
-            foreach (var i in c.Iteraciones) { i.Vigente = false; foreach (var k in i.Casos) k.Vigente = false; }
+            foreach (var i in c.Iteraciones) { i.Vigente = false; foreach (var k in i.Casos) k.Vigente = false; foreach (var m in i.Modulos) m.Vigente = false; }
         }
 
         var recursos = (await context.RecursosQA.Where(r => r.SquashLogin != null).ToListAsync(ct))
@@ -70,6 +71,17 @@ public static class SquashSincronizacion
                     caso.UltimaEjecucion = kd.UltimaEjecucion;
                     caso.Vigente = true;
                     totalCasos++;
+                }
+                // Módulos: la pertenencia se reconstruye en cada lectura con lo que informa Squash.
+                foreach (var m in iteracion.Modulos) m.Casos.Clear();
+                foreach (var md in idto.Modulos ?? new())
+                {
+                    var modulo = iteracion.Modulos.FirstOrDefault(m => m.SquashId == md.Id);
+                    if (modulo is null) { modulo = new SquashModulo { SquashId = md.Id }; iteracion.Modulos.Add(modulo); }
+                    modulo.Nombre = Recortar(md.Nombre, 200);
+                    modulo.Vigente = true;
+                    foreach (var itemId in md.ItemIds.Distinct())
+                        if (iteracion.Casos.FirstOrDefault(k => k.SquashItemId == itemId) is { } caso) modulo.Casos.Add(caso);
                 }
                 var cuentan = iteracion.Casos.Where(k => k.Vigente && k.Porcentaje is not null).ToList();
                 iteracion.Porcentaje = cuentan.Count == 0 ? 0 : Math.Round(cuentan.Average(k => k.Porcentaje!.Value), 2);

@@ -30,9 +30,40 @@ public class DetalleModel : PageModel
     public List<ResultadoCertificacionConFuente> Certificaciones { get; set; } = new();
     public StatusCertificacion Status { get; private set; } = new(0, 0, 0);
     public List<(AsociacionExterna Fuente, ResultadoDefectos Resultado)> Defectos { get; } = new();
-    public int? DefectosAbiertos => Defectos.Count > 0 && Defectos.All(d => d.Resultado.Disponible)
-        ? Defectos.SelectMany(d => d.Resultado.Defectos).DistinctBy(d => d.Id)
-            .Count(d => string.IsNullOrWhiteSpace(d.Resolucion)) : null;
+    /// <summary>Resumen de defectos con las mismas reglas del dashboard Kiwi/Bugzilla; null si Bugzilla no está disponible.</summary>
+    public ResumenDefectos? Resumen => Defectos.Count > 0 && Defectos.All(d => d.Resultado.Disponible)
+        ? ResumenDefectos.De(Defectos.SelectMany(d => d.Resultado.Defectos).DistinctBy(d => d.Id)) : null;
+    public int? DefectosAbiertos => Resumen?.Abiertos;
+
+    /// <summary>Abierto = estado distinto de RESOLVED, VERIFIED y CLOSED. Pendiente de retest = RESOLVED + FIXED.</summary>
+    public record ResumenDefectos(int Total, int Abiertos, int Bloqueantes, int NoBloqueantes, int Mejoras, int SinClasificar, int PendienteRetest)
+    {
+        public static ResumenDefectos De(IEnumerable<DefectoExterno> defectos)
+        {
+            var lista = defectos.ToList();
+            var abiertos = lista.Where(d => !new[] { "RESOLVED", "VERIFIED", "CLOSED" }.Contains(d.Estado.Trim().ToUpperInvariant())).ToList();
+            int Con(string sev) => abiertos.Count(d => Normalizar(d.Severidad) == sev);
+            int b = Con("bloqueante"), nb = Con("no-bloqueante"), m = Con("mejora");
+            var retest = lista.Count(d => d.Estado.Trim().Equals("RESOLVED", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(d.Resolucion?.Trim(), "FIXED", StringComparison.OrdinalIgnoreCase));
+            return new ResumenDefectos(lista.Count, abiertos.Count, b, nb, m, abiertos.Count - b - nb - m, retest);
+        }
+
+        private static string Normalizar(string? valor)
+        {
+            var d = (valor ?? "").ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+            var sinTildes = new string(d.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
+            var token = System.Text.RegularExpressions.Regex.Replace(sinTildes, "[^a-z0-9]+", "-").Trim('-');
+            // Severidades estándar de Bugzilla (inglés) equivalentes a las del dashboard en español.
+            return token switch
+            {
+                "blocker" => "bloqueante",
+                "enhancement" => "mejora",
+                "critical" or "major" or "normal" or "minor" or "trivial" => "no-bloqueante",
+                _ => token
+            };
+        }
+    }
 
     /// <summary>Casos vigentes que cuentan en la certificación (excluye No ejecutable, Omitido y Cancelado).</summary>
     public record StatusCertificacion(int Total, int Ejecutados, int Fallidos);
@@ -46,6 +77,7 @@ public class DetalleModel : PageModel
             .Include(p => p.Integraciones)
             .Include(p => p.VinculoBugzilla)
             .Include(p => p.SquashCampanas).ThenInclude(c => c.Iteraciones).ThenInclude(i => i.Casos).ThenInclude(k => k.RecursoQA)
+            .Include(p => p.SquashCampanas).ThenInclude(c => c.Iteraciones).ThenInclude(i => i.Modulos).ThenInclude(m => m.Casos)
             .Include(p => p.Acuerdos).ThenInclude(x => x.RecursoQA)
             .Include(p => p.Acuerdos).ThenInclude(x => x.Actividades).ThenInclude(v => v.Actividad)
             .Include(p => p.Actividades).ThenInclude(a => a.RecursoQA)
@@ -60,7 +92,13 @@ public class DetalleModel : PageModel
         }
 
         Proyecto = proyecto;
-        foreach (var fuente in proyecto.Integraciones.Where(i => i.Herramienta == HerramientaIntegracion.Bugzilla))
+        // Fuentes de defectos: asociaciones manuales (Integraciones) y el producto preparado automáticamente (vínculo Bugzilla).
+        var fuentes = proyecto.Integraciones.Where(i => i.Herramienta == HerramientaIntegracion.Bugzilla).ToList();
+        var productoVinculado = proyecto.VinculoBugzilla?.ProductoNombre;
+        if (!string.IsNullOrWhiteSpace(productoVinculado)
+            && !fuentes.Any(f => f.IdentificadorExterno.Trim().Equals(productoVinculado.Trim(), StringComparison.OrdinalIgnoreCase)))
+            fuentes.Add(new AsociacionExterna { ProyectoId = proyecto.Id, Herramienta = HerramientaIntegracion.Bugzilla, IdentificadorExterno = productoVinculado });
+        foreach (var fuente in fuentes)
             Defectos.Add((fuente, await _defectos.ObtenerDefectosAsync(fuente.IdentificadorExterno, HttpContext.RequestAborted)));
 
         // Ejecutado = con resultado final (Aprobado, Corregido, Fallido, Error, Advertencia). Fallido = FAILURE o ERROR.

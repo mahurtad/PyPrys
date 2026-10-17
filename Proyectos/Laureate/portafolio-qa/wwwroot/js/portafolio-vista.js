@@ -13,6 +13,8 @@
         vistaTabla.classList.add('d-none');
         btnTarjetas.classList.add('active');
         btnTabla.classList.remove('active');
+        btnTarjetas.setAttribute('aria-pressed', 'true');
+        btnTabla.setAttribute('aria-pressed', 'false');
         localStorage.setItem('portafolio-vista', 'tarjetas');
     }
 
@@ -21,6 +23,8 @@
         vistaTarjetas.classList.add('d-none');
         btnTabla.classList.add('active');
         btnTarjetas.classList.remove('active');
+        btnTabla.setAttribute('aria-pressed', 'true');
+        btnTarjetas.setAttribute('aria-pressed', 'false');
         localStorage.setItem('portafolio-vista', 'tabla');
     }
 
