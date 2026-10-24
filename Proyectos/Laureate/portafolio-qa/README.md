@@ -9,6 +9,10 @@ Consulta [INSTRUCTIVO.md](INSTRUCTIVO.md) para el alcance completo. Estado:
 **etapa 2** (planificación: Gantt, calendario y capacidad) y **etapa 3**
 (autenticación, roles y despliegue), con clientes reales para Squash TM y Bugzilla.
 
+## Control de despliegues
+
+Consultar [fichas por versión y ambiente](docs/despliegues/README.md) para migraciones, configuración adicional y evidencia de cada servidor.
+
 ## Squash TM y Bugzilla locales
 
 La configuración actual usa **http://localhost:8090/squash** y **http://localhost:8080**.

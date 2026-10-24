@@ -26,6 +26,21 @@ try {
     Write-Host '3/4 Generando el script SQL idempotente de migraciones...'
     dotnet ef migrations script --idempotent --configuration Release -o (Join-Path $paquete 'db\portafolio-qa.sql') | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'dotnet ef migrations script falló.' }
+    # Opciones requeridas por SQL Server para índices filtrados, incluso al ejecutar con sqlcmd.
+    $sqlPath = Join-Path $paquete 'db\portafolio-qa.sql'
+    $sqlHeader = @'
+-- Portafolio QA: esquema idempotente. Respaldar y seleccionar la base de destino antes de ejecutar.
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET ARITHABORT ON;
+SET NUMERIC_ROUNDABORT OFF;
+GO
+'@
+    $sqlBody = [IO.File]::ReadAllText($sqlPath)
+    [IO.File]::WriteAllText($sqlPath, ($sqlHeader + [Environment]::NewLine + $sqlBody), (New-Object System.Text.UTF8Encoding($true)))
 } finally { Pop-Location }
 
 Write-Host '4/4 Armando el paquete...'

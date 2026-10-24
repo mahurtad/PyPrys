@@ -27,6 +27,16 @@ Estados que muestra Portafolio: **Sincronizado con Bugzilla** (producto, compone
 - Esta cuenta es distinta de `Bugzilla:ApiKey` (consulta de defectos): no reutilizar esa clave.
 
 ### Quien despliega Portafolio
+- **Forma recomendada:** un Administrador de Portafolio configura todo en **Sistema → Integración Bugzilla** (guía paso a paso en
+  la pantalla): la **dirección** de Bugzilla, la **clave de lectura** (defectos) y la **clave de la cuenta de servicio** con su login
+  (crea productos). Cada dato se prueba contra Bugzilla (la dirección responde como Bugzilla; la clave de servicio es válida, es de
+  esa cuenta y tiene `editcomponents`), se guarda cifrado con Data Protection en `bugzilla-servicio.dat` (carpeta de datos del
+  servidor, junto a `conexion.dat`) y surte efecto sin reiniciar. Lo guardado tiene prioridad sobre la configuración del servidor;
+  *Quitar lo guardado* devuelve a esta. Los cambios se auditan (sin las claves). Guardar exige la contraseña del administrador.
+- **Cambiar la dirección** obliga a pegar de nuevo las dos claves (son de otra instalación). Si hay proyectos con producto ya creado
+  en la dirección anterior, la pantalla pide confirmación: esos vínculos quedan en Error para revisión (ver reglas de seguridad);
+  no se borra ni se reasigna nada.
+- **Alternativa por servidor:** lo siguiente sigue funcionando y es lo que rige si no se guardó nada desde la pantalla.
 - Configurar la clave **fuera del repositorio**: user-secrets (`Bugzilla:AdminApiKey`) en desarrollo, o la variable de entorno
   `Bugzilla__AdminApiKey` en el servidor. Opcionalmente `Bugzilla:CuentaServicio` (login de esa cuenta; es el responsable por defecto
   del componente `General`; no se asigna a personas).
@@ -37,8 +47,9 @@ Estados que muestra Portafolio: **Sincronizado con Bugzilla** (producto, compone
 1. **Bugzilla 5.2 ignora la cabecera `X-BUGZILLA-API-KEY`.** Con la cabecera, las lecturas funcionan como anónimas y crear
    devuelve 401 "You must log in". La clave se envía como parámetro `Bugzilla_api_key` (`BugzillaApiKeyHandler`). El log HTTP de ese
    cliente está en nivel Warning para que la URL con la clave no se registre. No subir ese nivel.
-   *Nota:* el cliente de **lectura** de defectos (`BugzillaClient`) sigue usando la cabecera, así que probablemente consulta como
-   anónimo y no vería productos privados. Pendiente de revisar aparte.
+   *Corregido (19/10/2026):* el cliente de **lectura** de defectos (`BugzillaClient`) también enviaba la cabecera y consultaba como
+   anónimo (comprobado con `valid_login`: cabecera = `false`, parámetro = `true`). Ahora usa el mismo mecanismo y su log HTTP también
+   está en Warning.
 2. **Una API key no se puede crear por REST.** Hay que generarla desde la interfaz de Bugzilla (o, en local, con el script).
 3. **La versión `1.0` solo se crea junto con el producto.** Bugzilla 5.2 no tiene endpoint para agregar versiones a un producto
    existente. Si a un producto ya existente le falta `1.0`, queda en Error con la instrucción de agregarla a mano y reintentar.

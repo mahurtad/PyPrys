@@ -21,7 +21,7 @@ public class DashboardServicioTests : IAsyncLifetime
     private DashboardService Servicio(PortafolioQAContext db, bool squashConf = true, bool bugzillaConf = true, DashboardDefectosCache? cache = null) =>
         new(db, _bz, cache ?? new DashboardDefectosCache(new MemoryCache(new MemoryCacheOptions())),
             Options.Create(new SquashOptions { BaseUrl = squashConf ? "http://localhost:1" : null, Token = squashConf ? "t" : null }),
-            Options.Create(new BugzillaOptions { BaseUrl = bugzillaConf ? "http://localhost:2" : null, ApiKey = bugzillaConf ? "k" : null }),
+            new BugzillaServicioFija(new BugzillaOptions { BaseUrl = bugzillaConf ? "http://localhost:2" : null, ApiKey = bugzillaConf ? "k" : null }),
             new RelojFijo(_hoy));
 
     private static SquashCaso K(int item, int tc, string estado, DateTime? ultima = null) =>

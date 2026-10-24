@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace PortafolioQA.Services.Integrations;
 
@@ -6,6 +6,12 @@ public class BugzillaOptions
 {
     public string? BaseUrl { get; set; }
     public string? ApiKey { get; set; }
+
+    /// <summary>Ruta de la API REST bajo la dirección: "rest" (con reescritura de Apache) o "rest.cgi" (instalaciones sin ella).</summary>
+    public string RutaRest { get; set; } = "rest";
+
+    /// <summary>Base de las llamadas REST, con barra final; null si no hay dirección.</summary>
+    public string? UrlRest => string.IsNullOrWhiteSpace(BaseUrl) ? null : BaseUrl.TrimEnd('/') + "/" + RutaRest.Trim('/') + "/";
     public bool Configurado => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var uri)
         && uri.Scheme is "http" or "https" && !string.IsNullOrWhiteSpace(ApiKey);
 

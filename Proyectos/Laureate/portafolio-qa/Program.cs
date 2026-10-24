@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using PortafolioQA.Data;
@@ -79,6 +79,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToFolder("/Setup");
     options.Conventions.AuthorizeFolder("/Admin", Politicas.PuedeEditar);
     options.Conventions.AuthorizeFolder("/Admin/Usuarios", Politicas.SoloAdmin);
+    options.Conventions.AuthorizeFolder("/Admin/Bugzilla", Politicas.SoloAdmin);
 });
 
 builder.Services.AddScoped<CapacidadService>();
@@ -111,33 +112,44 @@ builder.Services.AddScoped<ISquashApi>(sp =>
         ? sp.GetRequiredService<SquashTmClient>()
         : new SquashNoConfigurado());
 builder.Services.Configure<BugzillaOptions>(builder.Configuration.GetSection("Bugzilla"));
+// Cuenta de servicio (editcomponents): su clave se guarda cifrada desde Sistema → Integración Bugzilla o, si no, viene de la
+// configuración del servidor. El almacén es singleton y recarga al guardar, sin reiniciar la aplicación.
+builder.Services.AddSingleton<BugzillaCredencialesStore>();
+builder.Services.AddSingleton<IBugzillaServicioConfig>(sp => sp.GetRequiredService<BugzillaCredencialesStore>());
+// Consulta de defectos: Bugzilla 5.2 ignora la cabecera X-BUGZILLA-API-KEY (la llamada sería anónima), así que la clave va como
+// parámetro. El registro HTTP se silencia para que la URL con la clave no quede en los logs. Dirección y claves salen de
+// IBugzillaServicioConfig (lo guardado en Sistema → Integración Bugzilla o la configuración del servidor) y se leen en cada uso.
 builder.Services.AddHttpClient<BugzillaClient>((sp, http) =>
 {
-    var o = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value;
+    var o = sp.GetRequiredService<IBugzillaServicioConfig>().Actual;
     if (!o.Configurado) return;
-    http.BaseAddress = new Uri(o.BaseUrl!.TrimEnd('/') + "/rest/");
-    http.Timeout = TimeSpan.FromSeconds(20);
-    http.DefaultRequestHeaders.Add("X-BUGZILLA-API-KEY", o.ApiKey);
-    http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-});
-// Cuenta de servicio con editcomponents (Bugzilla:AdminApiKey): crea el producto y el componente de cada iniciativa por la API REST.
-builder.Services.AddHttpClient<BugzillaProductosClient>((sp, http) =>
-{
-    var o = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value;
-    if (!o.ProductosConfigurado) return;
-    http.BaseAddress = new Uri(o.BaseUrl!.TrimEnd('/') + "/rest/");
+    http.BaseAddress = new Uri(o.UrlRest!);
     http.Timeout = TimeSpan.FromSeconds(20);
     http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 })
-.AddHttpMessageHandler(sp => new BugzillaApiKeyHandler(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value.AdminApiKey ?? string.Empty));
+.AddHttpMessageHandler(sp => { var cfg = sp.GetRequiredService<IBugzillaServicioConfig>(); return new BugzillaApiKeyHandler(() => cfg.Actual.ApiKey ?? string.Empty); });
+// Cuenta de servicio con editcomponents: crea el producto y el componente de cada iniciativa por la API REST.
+builder.Services.AddHttpClient<BugzillaProductosClient>((sp, http) =>
+{
+    var o = sp.GetRequiredService<IBugzillaServicioConfig>().Actual;
+    if (!Uri.TryCreate(o.BaseUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")) return;
+    http.BaseAddress = new Uri(o.UrlRest!);
+    http.Timeout = TimeSpan.FromSeconds(20);
+    http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+})
+.AddHttpMessageHandler(sp => { var cfg = sp.GetRequiredService<IBugzillaServicioConfig>(); return new BugzillaApiKeyHandler(() => cfg.Actual.AdminApiKey ?? string.Empty); });
+// Prueba de la clave desde la pantalla de configuración (solo lectura en Bugzilla).
+builder.Services.AddHttpClient<BugzillaProbador>(http => http.Timeout = TimeSpan.FromSeconds(15));
+builder.Logging.AddFilter("System.Net.Http.HttpClient.BugzillaClient", LogLevel.Warning);
 builder.Logging.AddFilter("System.Net.Http.HttpClient.BugzillaProductosClient", LogLevel.Warning);
+builder.Logging.AddFilter("System.Net.Http.HttpClient.BugzillaProbador", LogLevel.Warning);
 builder.Services.AddScoped<IBugzillaProductos>(sp =>
-    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value.ProductosConfigurado
+    sp.GetRequiredService<IBugzillaServicioConfig>().Actual.ProductosConfigurado
         ? sp.GetRequiredService<BugzillaProductosClient>()
         : new BugzillaProductosNoConfigurado());
 builder.Services.AddScoped<BugzillaProvision>();
 builder.Services.AddScoped<IIntegracionDefectos>(sp =>
-    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BugzillaOptions>>().Value.Configurado
+    sp.GetRequiredService<IBugzillaServicioConfig>().Actual.Configurado
         ? sp.GetRequiredService<BugzillaClient>()
         : new IntegracionDefectosNoConfigurada());
 

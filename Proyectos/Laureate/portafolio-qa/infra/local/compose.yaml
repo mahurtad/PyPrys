@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: squashtm
       POSTGRES_USER: squashtm
       POSTGRES_PASSWORD: ${SQUASH_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5433:5432"
     volumes:
       - squash-db:/var/lib/postgresql/data
     healthcheck:
@@ -32,7 +34,7 @@ services:
       - "127.0.0.1:8090:8080"
     volumes:
       - squash-logs:/opt/squash-tm/logs
-      - ./start-plugins.cfg:/opt/squash-tm/conf/start-plugins.cfg:ro
+      - ${SQUASH_PLUGINS_CONFIG:-./start-plugins.cfg}:/opt/squash-tm/conf/start-plugins.cfg:ro
   bugzilla-db:
     image: mariadb:11.8
     restart: unless-stopped

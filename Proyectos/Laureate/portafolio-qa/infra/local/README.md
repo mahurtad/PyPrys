@@ -8,11 +8,19 @@ Servicios exclusivos del proyecto Compose `portafolio-qa-local`:
 
 ## Inicio y persistencia
 
+Para iniciar las tres aplicaciones con un solo comando, abrir Docker Desktop y ejecutar
+`./Iniciar-Todo.ps1` desde la raíz del proyecto. Portafolio queda ejecutándose en esa ventana.
+
 Iniciar Docker Desktop y ejecutar `./infra/local/Iniciar.ps1` desde el proyecto.
 Ejecutar `./reiniciar.ps1` para iniciar o recompilar Portafolio.
 Los datos persisten en volúmenes Docker; `docker compose stop` conserva todos los datos.
 No ejecutar `down -v`: elimina las bases y los adjuntos.
 Los puertos web solo se publican en 127.0.0.1; las bases no publican puertos.
+
+Si Docker no puede montar `start-plugins.cfg` desde la unidad virtual de Google Drive,
+copiar ese archivo a una carpeta local del equipo y agregar a `.env`
+`SQUASH_PLUGINS_CONFIG=C:/ruta/local/start-plugins.cfg`.
+Compose usa esa ruta cuando está definida; en los demás equipos conserva la ruta relativa.
 
 ## Configuración
 

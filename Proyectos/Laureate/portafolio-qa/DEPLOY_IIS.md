@@ -86,4 +86,8 @@ fuera del repositorio). Doble guion bajo = separador de nivel:
   endurecer el sitio.
 - No hay recuperación de contraseña por correo: un administrador restablece la clave desde Usuarios.
 - No hay registro de auditoría de cambios de datos (quién modificó qué).
-- Bugzilla sigue sin conexión real (etapa 5).
+- Bugzilla dispone de integración REST: ver [INTEGRACION_BUGZILLA.md](INTEGRACION_BUGZILLA.md).
+
+## Registro por versión y ambiente
+
+Registrar cada ejecución en [Control de despliegues](docs/despliegues/README.md).

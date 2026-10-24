@@ -81,7 +81,7 @@ public class Entorno : IAsyncDisposable
 
     public BugzillaProvision Servicio(PortafolioQAContext db) => new(db, Api,
         Options.Create(new SquashOptions { BaseUrl = Squash, Token = "t" }),
-        Options.Create(new BugzillaOptions { BaseUrl = Bugzilla, ApiKey = "k", AdminApiKey = AdminKey }),
+        new BugzillaServicioFija(new BugzillaOptions { BaseUrl = Bugzilla, ApiKey = "k", AdminApiKey = AdminKey }),
         NullLogger<BugzillaProvision>.Instance);
 
     public static async Task<Entorno> CrearAsync()

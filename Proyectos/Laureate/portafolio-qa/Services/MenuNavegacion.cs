@@ -36,6 +36,7 @@ public static class MenuNavegacion
     public static readonly Entrada[] Sistema =
     {
         new("/Admin/Usuarios", "/Admin/Usuarios/Index", "Usuarios", "usuarios"),
+        new("/Admin/Bugzilla", "/Admin/Bugzilla/Index", "Integración Bugzilla", "integraciones"),
         new("/Setup", "/Setup/Index", "Conexión a la base de datos", "conexion")
     };
 

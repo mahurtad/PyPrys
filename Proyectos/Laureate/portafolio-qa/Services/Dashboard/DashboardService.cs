@@ -137,7 +137,7 @@ public class DashboardDefectosCache(IMemoryCache cache)
 /// y los defectos de Bugzilla (GET, con caché breve). Cada fuente falla por separado.
 /// </summary>
 public class DashboardService(PortafolioQAContext db, IIntegracionDefectos bugzilla, DashboardDefectosCache cacheDefectos,
-    IOptions<SquashOptions> squashOpciones, IOptions<BugzillaOptions> bugzillaOpciones, TimeProvider reloj)
+    IOptions<SquashOptions> squashOpciones, IBugzillaServicioConfig bugzillaOpciones, TimeProvider reloj)
 {
     private sealed record CasoCarga(int Id, int IteracionId, int ItemId, int? TestCaseId, string Estado, decimal? Porcentaje, DateTime? Ultima);
 
@@ -243,7 +243,7 @@ public class DashboardService(PortafolioQAContext db, IIntegracionDefectos bugzi
         // --- Bugzilla: una consulta por producto distinto, en paralelo y con cupo ---
         var productos = resultado.Filas.SelectMany(f => f.Productos).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var respuestas = new Dictionary<string, ResultadoDefectos>(StringComparer.OrdinalIgnoreCase);
-        if (bugzillaOpciones.Value.Configurado && productos.Count > 0)
+        if (bugzillaOpciones.Actual.Configurado && productos.Count > 0)
         {
             var tareas = productos.Select(async prod => (prod, r: await cacheDefectos.ObtenerAsync(bugzilla, prod, forzar, ct))).ToList();
             foreach (var (prod, r) in await Task.WhenAll(tareas)) respuestas[prod] = r;
@@ -334,7 +334,7 @@ public class DashboardService(PortafolioQAContext db, IIntegracionDefectos bugzi
                 pd.Bugzilla = new(EstadoFuente.SinVinculo, v is null ? "El proyecto no tiene producto de Bugzilla asociado." : "Producto de Bugzilla pendiente de preparar.");
             return;
         }
-        if (!bugzillaOpciones.Value.Configurado)
+        if (!bugzillaOpciones.Actual.Configurado)
         {
             pd.Bugzilla = new(EstadoFuente.NoConfigurada, "Falta la URL o la clave de API de Bugzilla en la configuración del servidor.");
             pd.Incompleto.Add("Bugzilla: integración no configurada.");

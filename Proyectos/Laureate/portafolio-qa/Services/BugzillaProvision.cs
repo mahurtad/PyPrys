@@ -14,7 +14,7 @@ public record ResultadoPreparacion(bool Aplica, EstadoBugzilla? Estado, string M
 /// el avance se guarda al terminar cada uno y un reintento continúa desde lo pendiente. No borra ni reasigna nada.
 /// </summary>
 public class BugzillaProvision(PortafolioQAContext db, IBugzillaProductos api, IOptions<SquashOptions> squash,
-    IOptions<BugzillaOptions> bugzilla, ILogger<BugzillaProvision> log)
+    IBugzillaServicioConfig bugzillaConfig, ILogger<BugzillaProvision> log)
 {
     public const string ComponenteInicial = "General";
     public const string VersionInicial = "1.0";
@@ -34,7 +34,7 @@ public class BugzillaProvision(PortafolioQAContext db, IBugzillaProductos api, I
             return new(false, null, "El proyecto no está vinculado a Squash TM: no se prepara producto en Bugzilla.");
 
         var squashAmbiente = NormalizarAmbiente(squash.Value.BaseUrl);
-        var bugzillaAmbiente = NormalizarAmbiente(bugzilla.Value.BaseUrl);
+        var bugzillaAmbiente = NormalizarAmbiente(bugzillaConfig.Actual.BaseUrl);
 
         var vinculo = await db.VinculosBugzilla.FirstOrDefaultAsync(v => v.ProyectoId == proyectoId, ct);
         if (vinculo is null)
@@ -52,7 +52,7 @@ public class BugzillaProvision(PortafolioQAContext db, IBugzillaProductos api, I
             }
         }
 
-        if (!bugzilla.Value.ProductosConfigurado)
+        if (!bugzillaConfig.Actual.ProductosConfigurado)
             return await TerminarAsync(vinculo, EstadoBugzilla.Pendiente, BugzillaProductosNoConfigurado.Mensaje, ct);
 
         // Reserva atómica en la base: solo una solicitud a la vez prepara esta iniciativa (reintentos o clics repetidos).
@@ -150,7 +150,7 @@ public class BugzillaProvision(PortafolioQAContext db, IBugzillaProductos api, I
         var componente = producto.Componentes.FirstOrDefault(c => string.Equals(c.Nombre, ComponenteInicial, StringComparison.OrdinalIgnoreCase));
         if (componente is null)
         {
-            var creado = await api.CrearComponenteAsync(producto.Nombre, ComponenteInicial, "Componente general", bugzilla.Value.CuentaServicio, ct);
+            var creado = await api.CrearComponenteAsync(producto.Nombre, ComponenteInicial, "Componente general", bugzillaConfig.Actual.CuentaServicio, ct);
             if (!creado.Ok)
             {
                 var releido = await api.ObtenerProductoAsync(producto.Id, ct);

@@ -1,0 +1,196 @@
+@page
+@model PortafolioQA.Pages.Admin.Bugzilla.IndexModel
+@using PortafolioQA.Services.Integrations
+@{
+    ViewData["Title"] = "Integración Bugzilla";
+
+    void Resultado(ResultadoPruebaBugzilla? p, bool conGrupo)
+    {
+        if (p is null) return;
+        <div class="alert @(p.Aceptable ? (conGrupo && p.TienePermiso != true ? "alert-warning" : "alert-success") : "alert-danger") mt-2 mb-0">
+            @if (p.Conecta)
+            {
+                <ul class="list-unstyled mb-1">
+                    <li>@(p.ClaveValida ? "✔" : "✖") La clave es válida</li>
+                    @if (conGrupo)
+                    {
+                        <li>@(p.CuentaCoincide ? "✔" : "✖") Pertenece a la cuenta indicada</li>
+                        <li>@(p.TienePermiso switch { true => "✔", false => "✖", _ => "?" }) Grupo <code>editcomponents</code></li>
+                    }
+                </ul>
+            }
+            @p.Mensaje
+        </div>
+    }
+}
+
+<h1 class="h3 mb-1">Integración Bugzilla</h1>
+<p class="text-muted">
+    Portafolio usa Bugzilla para dos cosas: <strong>mostrar los defectos</strong> de cada proyecto y <strong>crear su producto</strong>
+    (con el componente <code>General</code> y la versión <code>1.0</code>) al registrar un proyecto vinculado a Squash TM.
+    Aquí se configura la dirección y las claves de las dos cuentas. Se hace una vez por ambiente.
+</p>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+@if (Model.Aviso != null)
+{
+    <div class="alert alert-warning">@Model.Aviso</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card mb-3">
+            <div class="card-header"><h2 class="card-title h4 mb-0">Estado</h2></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Dirección</dt>
+                    <dd class="col-sm-7">
+                        @if (string.IsNullOrWhiteSpace(Model.BaseUrlActual)) { <span class="text-danger">Sin configurar</span> }
+                        else { <code>@Model.BaseUrlActual</code> }
+                    </dd>
+                    <dt class="col-sm-5">Clave de lectura<br /><span class="small text-muted fw-normal">defectos</span></dt>
+                    <dd class="col-sm-7">
+                        @if (Model.ClaveLecturaConfigurada) { <span class="badge bg-success">Configurada</span> }
+                        else { <span class="badge bg-warning text-dark">Falta</span> }
+                    </dd>
+                    <dt class="col-sm-5">Clave de servicio<br /><span class="small text-muted fw-normal">crear productos</span></dt>
+                    <dd class="col-sm-7">
+                        @if (Model.ClaveServicioConfigurada)
+                        {
+                            <span class="badge bg-success">Configurada</span>
+                            <div class="small text-muted mt-1">Cuenta <code>@Model.CuentaActual</code></div>
+                        }
+                        else { <span class="badge bg-warning text-dark">Falta</span><div class="small text-muted mt-1">Los productos quedan <em>Pendientes</em>.</div> }
+                    </dd>
+                    <dt class="col-sm-5">Origen</dt>
+                    <dd class="col-sm-7">
+                        @switch (Model.Origen)
+                        {
+                            case OrigenBugzilla.Aplicacion:
+                                <span>Guardado desde la aplicación</span>
+                                <div class="small text-muted">Por @Model.GuardadoPor el @Model.GuardadoEn?.ToString("dd/MM/yyyy HH:mm")</div>
+                                break;
+                            case OrigenBugzilla.Servidor:
+                                <span>Configuración del servidor</span>
+                                <div class="small text-muted">Lo que se guarde aquí tendrá prioridad.</div>
+                                break;
+                            default:
+                                <span>Sin configurar</span>
+                                break;
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h2 class="card-title h4 mb-0">Cómo obtener cada clave en Bugzilla</h2></div>
+            <div class="card-body">
+                <p class="mb-2">Son <strong>dos cuentas distintas</strong>; no reutilice una clave para ambas funciones.</p>
+                <ol class="mb-3">
+                    <li class="mb-2">
+                        <strong>Cuenta de servicio</strong> (crea productos). El administrador de Bugzilla la crea, por ejemplo
+                        <code>portafolio-productos-api@su-dominio</code>, con <strong>solo el grupo <code>editcomponents</code></strong>.
+                    </li>
+                    <li class="mb-2">
+                        <strong>Cuenta de lectura</strong> (consulta defectos): una cuenta aparte, sin permisos de edición.
+                    </li>
+                    <li class="mb-2">
+                        Para cada una: <strong>inicie sesión en Bugzilla con esa cuenta</strong> (no con la suya ni la de un administrador),
+                        vaya a <strong>Preferencias → API Keys</strong>, escriba una descripción (por ejemplo «Portafolio QA») y pulse
+                        <strong>Submit changes</strong>. Copie la clave completa.
+                    </li>
+                    <li class="mb-2">
+                        Péguelas en el formulario, pulse <em>Probar conexión</em> y luego <em>Guardar</em>.
+                    </li>
+                </ol>
+                <div class="alert alert-info mb-0">
+                    <ul class="mb-0 ps-3">
+                        <li>Bugzilla 5.2 no permite crear claves automáticamente; solo se generan desde su pantalla.</li>
+                        <li>La dirección es donde está instalado Bugzilla, sin <code>/rest</code>: por ejemplo <code>https://bugzilla.su-dominio</code> o
+                            <code>http://servidor:8080/bugzilla</code> si vive en una subcarpeta. La ruta de la API (<code>/rest</code> o
+                            <code>/rest.cgi</code>) se detecta sola.</li>
+                        <li>Si alguien revoca una clave o desactiva la cuenta, la función queda en <em>Error</em>: genere otra y guárdela aquí.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <form method="post" autocomplete="off">
+            <div class="card mb-3">
+                <div class="card-header"><h2 class="card-title h4 mb-0">1. Dirección de Bugzilla</h2></div>
+                <div class="card-body">
+                    <input id="url" name="Entrada.BaseUrl" value="@Model.Entrada.BaseUrl" class="form-control" autocomplete="off"
+                           placeholder="https://bugzilla.su-dominio  ·  http://servidor:8080/bugzilla" />
+                    <div class="form-text">
+                        Si la cambia, hay que pegar de nuevo las dos claves (son de otra instalación de Bugzilla). Los proyectos que ya
+                        tienen producto en la dirección anterior quedan en <em>Error</em> para revisión; no se borra ni se reasigna nada.
+                    </div>
+                    @if (Model.VinculosAfectados > 0)
+                    {
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="confirma" name="Entrada.ConfirmaCambioUrl" value="true" />
+                            <label class="form-check-label" for="confirma">
+                                Entiendo que @Model.VinculosAfectados proyecto(s) con producto creado quedarán en Error y deseo continuar.
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header"><h2 class="card-title h4 mb-0">2. Clave de lectura (mostrar defectos)</h2></div>
+                <div class="card-body">
+                    <input id="lectura" name="Entrada.ApiKeyLectura" type="password" class="form-control" autocomplete="new-password"
+                           placeholder="@(Model.ClaveLecturaConfigurada ? "Configurada: déjela en blanco para conservarla" : "Pegue la clave de la cuenta de lectura")" />
+                    @{ Resultado(Model.PruebaLectura, false); }
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header"><h2 class="card-title h4 mb-0">3. Cuenta de servicio (crear productos)</h2></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="cuenta">Login de la cuenta de servicio</label>
+                        <input id="cuenta" name="Entrada.CuentaServicio" value="@Model.Entrada.CuentaServicio" class="form-control" autocomplete="off" />
+                        <div class="form-text">Es también el responsable por defecto del componente <code>General</code>.</div>
+                    </div>
+                    <div>
+                        <label class="form-label" for="clave">Clave API de la cuenta de servicio</label>
+                        <input id="clave" name="Entrada.ApiKey" type="password" class="form-control" autocomplete="new-password"
+                               placeholder="@(Model.ClaveServicioConfigurada ? "Configurada: déjela en blanco para conservarla" : "Pegue la clave de la cuenta de servicio")" />
+                        @{ Resultado(Model.PruebaServicio, true); }
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="admin">Su contraseña de Portafolio (@User.Identity?.Name)</label>
+                        <input id="admin" name="Entrada.ClaveAdmin" type="password" class="form-control" autocomplete="current-password" />
+                        <div class="form-text">Es la contraseña con la que usted inicia sesión en esta aplicación, <strong>no la de Bugzilla</strong>. Solo para <em>Guardar</em> y <em>Quitar</em>; <em>Probar</em> no la necesita. Las claves se guardan cifradas y no se vuelven a mostrar.</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" asp-page-handler="Probar" class="btn btn-outline-primary">Probar conexión</button>
+                        <button type="submit" asp-page-handler="Guardar" class="btn btn-primary">Guardar</button>
+                        @if (Model.Origen == OrigenBugzilla.Aplicacion)
+                        {
+                            <button type="submit" asp-page-handler="Quitar" class="btn btn-outline-danger ms-auto"
+                                    onclick="return confirm('¿Quitar todo lo guardado desde la aplicación? Volverá a regir la configuración del servidor.');">Quitar lo guardado</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

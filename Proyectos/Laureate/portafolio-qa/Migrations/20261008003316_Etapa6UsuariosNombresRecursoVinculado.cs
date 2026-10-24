@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -32,15 +32,17 @@ namespace PortafolioQA.Migrations
                 nullable: false,
                 defaultValue: "");
 
+            // EXEC difiere la compilación: el script idempotente puede omitir esta migración
+            // en bases donde NombreCompleto ya fue eliminada.
             // Conserva los datos: el primer token del nombre completo pasa a Nombres y el resto a Apellidos.
-            migrationBuilder.Sql(@"
+            migrationBuilder.Sql(@"EXEC(N'
 UPDATE AspNetUsers SET
-    Nombres   = CASE WHEN CHARINDEX(' ', LTRIM(RTRIM(NombreCompleto))) > 0
-                     THEN LEFT(LTRIM(RTRIM(NombreCompleto)), CHARINDEX(' ', LTRIM(RTRIM(NombreCompleto))) - 1)
+    Nombres   = CASE WHEN CHARINDEX('' '', LTRIM(RTRIM(NombreCompleto))) > 0
+                     THEN LEFT(LTRIM(RTRIM(NombreCompleto)), CHARINDEX('' '', LTRIM(RTRIM(NombreCompleto))) - 1)
                      ELSE LTRIM(RTRIM(NombreCompleto)) END,
-    Apellidos = CASE WHEN CHARINDEX(' ', LTRIM(RTRIM(NombreCompleto))) > 0
-                     THEN LTRIM(SUBSTRING(LTRIM(RTRIM(NombreCompleto)), CHARINDEX(' ', LTRIM(RTRIM(NombreCompleto))) + 1, 200))
-                     ELSE '' END;");
+    Apellidos = CASE WHEN CHARINDEX('' '', LTRIM(RTRIM(NombreCompleto))) > 0
+                     THEN LTRIM(SUBSTRING(LTRIM(RTRIM(NombreCompleto)), CHARINDEX('' '', LTRIM(RTRIM(NombreCompleto))) + 1, 200))
+                     ELSE '''' END;');");
 
             migrationBuilder.DropColumn(
                 name: "NombreCompleto",
@@ -62,11 +64,11 @@ UPDATE AspNetUsers SET
                 onDelete: ReferentialAction.Restrict);
 
             // Vincula los recursos existentes con el usuario de igual correo (si lo hay).
-            migrationBuilder.Sql(@"
+            migrationBuilder.Sql(@"EXEC(N'
 UPDATE r SET r.UsuarioId = u.Id
 FROM RecursosQA r
 JOIN AspNetUsers u ON u.NormalizedEmail = UPPER(r.Correo)
-WHERE r.UsuarioId IS NULL;");
+WHERE r.UsuarioId IS NULL;');");
         }
 
         /// <inheritdoc />

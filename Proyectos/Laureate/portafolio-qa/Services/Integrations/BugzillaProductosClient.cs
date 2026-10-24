@@ -33,7 +33,7 @@ public interface IBugzillaProductos
 
 public class BugzillaProductosNoConfigurado : IBugzillaProductos
 {
-    public const string Mensaje = "Bugzilla no está configurado para crear productos (falta Bugzilla:AdminApiKey).";
+    public const string Mensaje = "Bugzilla no está configurado para crear productos (falta la clave de la cuenta de servicio: Sistema → Integración Bugzilla).";
     private static ResultadoBugzilla<T> Fallo<T>() => ResultadoBugzilla<T>.Fallo(Mensaje);
     public Task<ResultadoBugzilla<List<ProductoResumenBugzilla>>> ListarProductosAsync(CancellationToken ct = default) => Task.FromResult(Fallo<List<ProductoResumenBugzilla>>());
     public Task<ResultadoBugzilla<ProductoBugzilla?>> ObtenerProductoAsync(int id, CancellationToken ct = default) => Task.FromResult(Fallo<ProductoBugzilla?>());
@@ -45,13 +45,15 @@ public class BugzillaProductosNoConfigurado : IBugzillaProductos
 /// Este Bugzilla (5.2) ignora la cabecera X-BUGZILLA-API-KEY y trata la llamada como anónima (401 al crear): la clave se envía
 /// como parámetro Bugzilla_api_key. Se añade aquí, y el registro HTTP del cliente se silencia en Program.cs para no volcar la URL.
 /// </summary>
-public class BugzillaApiKeyHandler(string clave) : DelegatingHandler
+public class BugzillaApiKeyHandler(Func<string> clave) : DelegatingHandler
 {
+    public BugzillaApiKeyHandler(string clave) : this(() => clave) { }
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
         var uri = request.RequestUri!;
         var separador = string.IsNullOrEmpty(uri.Query) ? "?" : "&";
-        request.RequestUri = new Uri(uri.OriginalString + separador + "Bugzilla_api_key=" + Uri.EscapeDataString(clave), UriKind.RelativeOrAbsolute);
+        request.RequestUri = new Uri(uri.OriginalString + separador + "Bugzilla_api_key=" + Uri.EscapeDataString(clave()), UriKind.RelativeOrAbsolute);
         return base.SendAsync(request, ct);
     }
 }
